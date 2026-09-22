@@ -5,16 +5,40 @@ Run:
 """
 from collections import deque
 import csv
+import sys
 import time
 from datetime import datetime
 
-import cv2
-import customtkinter as ctk
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
-import mediapipe as mp
-import numpy as np
-from PIL import Image
+try:
+    import cv2
+except ImportError:
+    raise SystemExit("Missing opencv-python. Run: pip install -r requirements.txt")
+try:
+    import customtkinter as ctk
+except ImportError:
+    raise SystemExit("Missing customtkinter. Run: pip install -r requirements.txt")
+try:
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from matplotlib.figure import Figure
+except ImportError:
+    raise SystemExit("Missing matplotlib. Run: pip install -r requirements.txt")
+try:
+    import mediapipe as mp
+except ImportError:
+    raise SystemExit("Missing mediapipe. Run: pip install -r requirements.txt")
+try:
+    import numpy as np
+except ImportError:
+    raise SystemExit("Missing numpy. Run: pip install -r requirements.txt")
+try:
+    from PIL import Image
+except ImportError:
+    raise SystemExit("Missing pillow. Run: pip install -r requirements.txt")
+
+if sys.version_info[:2] != (3, 10):
+    print(f"WARNING: Python {sys.version_info[0]}.{sys.version_info[1]} detected. "
+          f"This project is verified on Python 3.10 (mediapipe==0.10.9). "
+          f"Create env: conda create -n drowsiness python=3.10 -y")
 
 try:
     import serial
@@ -97,6 +121,14 @@ class Dashboard(ctk.CTk):
                 break
         if self.cap is None:
             raise SystemExit("No camera found (tried 0,1,2). Check cable/privacy settings.")
+        _warm = 0
+        for _ in range(10):  # warmup: camera may be held by Zoom/Meet
+            _ok, _f = self.cap.read()
+            if _ok and _f is not None:
+                _warm += 1
+        if _warm == 0:
+            raise SystemExit("Camera opened but no frames (busy?). Close Zoom/Meet/other apps and retry.")
+        self.last_autosave = time.time()
         self.last_dark_warn = 0.0
         self.stable_level = "0"
         self.stable_n = 0
@@ -135,6 +167,7 @@ class Dashboard(ctk.CTk):
         self.log = ctk.CTkTextbox(self, height=180)
         self.log.grid(row=6, column=1, padx=12, pady=8, sticky="nsew")
         self.log.insert("end", "Alert log ready.\n")
+        self.log.insert("end", f"Python {sys.version_info[0]}.{sys.version_info[1]} (verified: 3.10).\n")
         if getattr(self, "_pending_cam", ""):
             self.log.insert("end", self._pending_cam + "\n")
         if getattr(self, "_pending_log", ""):
@@ -156,6 +189,14 @@ class Dashboard(ctk.CTk):
         self.log.see("end")
         self.alerts.append((ts, msg))
 
+    def _save_report(self):
+        try:
+            with open("session_report.csv", "w", newline="") as f:
+                csv.writer(f).writerows([("time", "event")] + self.alerts)
+            return True
+        except Exception:
+            return False
+
     def on_close(self):
         self.running = False
         self.cap.release()
@@ -165,11 +206,8 @@ class Dashboard(ctk.CTk):
                 self.ser.close()
             except Exception:
                 pass
-        try:
-            with open("session_report.csv", "w", newline="") as f:
-                csv.writer(f).writerows([("time", "event")] + self.alerts)
-        except Exception:
-            pass
+        if not self._save_report():
+            print("WARNING: could not save session_report.csv (folder read-only?).")
         self.destroy()
 
     def loop(self):
@@ -374,6 +412,10 @@ class Dashboard(ctk.CTk):
             self.ax.set_xlim(0, max(GRAPH_LEN, len(self.graph_hist)))
             self.canvas.draw_idle()
 
+        if time.time() - self.last_autosave >= 60:  # autosave every minute
+            self.last_autosave = time.time()
+            if self._save_report():
+                self.add_log("Session autosaved.")
         self.after(30, self.loop)
 
 
