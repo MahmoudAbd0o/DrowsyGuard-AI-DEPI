@@ -88,9 +88,18 @@ class Dashboard(ctk.CTk):
         self.mesh = mp_face.FaceMesh(max_num_faces=2, refine_landmarks=True,
                                      min_detection_confidence=0.5,
                                      min_tracking_confidence=0.5)
-        self.cap = cv2.VideoCapture(0)
-        if not self.cap.isOpened():
-            raise SystemExit("Camera not found.")
+        self.cap = None
+        for _idx in (0, 1, 2):  # fallback: try every camera (laptops/IR cams)
+            _c = cv2.VideoCapture(_idx)
+            if _c.isOpened():
+                self.cap = _c
+                self._pending_cam = f"Camera {_idx} opened."
+                break
+        if self.cap is None:
+            raise SystemExit("No camera found (tried 0,1,2). Check cable/privacy settings.")
+        self.last_dark_warn = 0.0
+        self.stable_level = "0"
+        self.stable_n = 0
 
         # --- layout: video left, stats right ---
         self.video_lbl = ctk.CTkLabel(self, text="")
@@ -126,6 +135,8 @@ class Dashboard(ctk.CTk):
         self.log = ctk.CTkTextbox(self, height=180)
         self.log.grid(row=6, column=1, padx=12, pady=8, sticky="nsew")
         self.log.insert("end", "Alert log ready.\n")
+        if getattr(self, "_pending_cam", ""):
+            self.log.insert("end", self._pending_cam + "\n")
         if getattr(self, "_pending_log", ""):
             self.log.insert("end", self._pending_log + "\n")
 
@@ -185,6 +196,16 @@ class Dashboard(ctk.CTk):
         self.cam_fails = 0
         if ok:
             h, w = frame.shape[:2]
+            _gs = cv2.cvtColor(cv2.resize(frame, (80, 60)), cv2.COLOR_BGR2GRAY)
+            _bright = float(_gs.mean())
+            if _bright < 40.0:  # night/low-light: warn + auto-enhance
+                if time.time() - self.last_dark_warn > 10:
+                    self.last_dark_warn = time.time()
+                    self.add_log(f"Low light ({_bright:.0f}) - accuracy reduced.")
+                _lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+                _l, _a, _b = cv2.split(_lab)
+                _l = cv2.createCLAHE(2.0, (8, 8)).apply(_l)
+                frame = cv2.cvtColor(cv2.merge((_l, _a, _b)), cv2.COLOR_LAB2BGR)
             try:
                 res = self.mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             except Exception as e:
@@ -195,6 +216,7 @@ class Dashboard(ctk.CTk):
                 return
             perclos, avg_ear, mar = 0.0, 0.0, 0.0
             status, color = "No Face", "gray"
+            face_frac = 1.0
             head_down, yawning_now, distracted = False, False, False
 
             if res.multi_face_landmarks:
@@ -216,6 +238,8 @@ class Dashboard(ctk.CTk):
                     cv2.putText(frame, "Passenger - ignored", (int(min(ox)), int(min(oy)) - 8),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (160, 160, 160), 2)
                 lm = np.array([(p.x * w, p.y * h) for p in fl.landmark])
+                face_frac = ((lm[:, 0].max() - lm[:, 0].min()) *
+                             (lm[:, 1].max() - lm[:, 1].min())) / max(1.0, w * h)
                 cv2.rectangle(frame, (int(lm[:, 0].min()), int(lm[:, 1].min())),
                               (int(lm[:, 0].max()), int(lm[:, 1].max())), (0, 255, 0), 2)
                 avg_ear = (ear(lm[LEFT_EYE]) + ear(lm[RIGHT_EYE])) / 2.0
@@ -272,6 +296,8 @@ class Dashboard(ctk.CTk):
 
             self.graph_hist.append(perclos)
             # graduated alarm: level char -> Arduino, distinct PC beep per level
+            if face_frac < 0.02 and res.multi_face_landmarks:
+                status, color = "Too far - move closer", "gray"
             if status.startswith("DROWSY"):
                 level = "2"
             elif status.startswith("DISTRACTED"):
@@ -282,6 +308,16 @@ class Dashboard(ctk.CTk):
                 level = "N"
             else:
                 level = "0"
+
+            # debounce: level must hold 5 frames before alarm/serial reacts
+            if level == getattr(self, "_raw", "0"):
+                self.stable_n += 1
+            else:
+                self._raw = level
+                self.stable_n = 0
+            if self.stable_n >= 5:
+                self.stable_level = level
+            level = self.stable_level
 
             if self.ser is not None and level != self.last_level:
                 try:
