@@ -1,11 +1,13 @@
 __pycache__/
 *.pyc
 .conda/
+.venv-drowsy/
 .vscode/
 *.log
 recordings/
 datasets/
 *.mp4
 *.avi
+session_report.csv
 
 session_report.csv

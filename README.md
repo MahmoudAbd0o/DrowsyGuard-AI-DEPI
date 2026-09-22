@@ -9,6 +9,7 @@ Smart driver monitoring + ADAS prototype by Mahmoud (CS Year 3, AI — Digital E
 - Arduino bridge: buzzer + LEDs + motor brake + HC-SR04 auto-brake
 
 ## Quick start
+Easiest (Windows, no terminal): install Python 3.10, double-click `setup.bat`, then double-click `run.bat`.
 ```bash
 conda create -n drowsiness python=3.10 -y
 conda activate drowsiness
