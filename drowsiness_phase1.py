@@ -23,6 +23,8 @@ TURN_MIN_FRAMES = 30
 
 LEFT_EYE = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
+DRIVER_ANCHOR = 0.30
+SIDE_BIAS = 0.5
 
 mp_face = mp.solutions.face_mesh
 
@@ -66,9 +68,21 @@ def main():
         head_down, yawning_now, distracted = False, False, False
 
         if res.multi_face_landmarks:
-            fl = max(res.multi_face_landmarks, key=lambda f: (
-                (max(p.x for p in f.landmark) - min(p.x for p in f.landmark)) *
-                (max(p.y for p in f.landmark) - min(p.y for p in f.landmark))))
+            def _score(f):
+                xs = [p.x for p in f.landmark]
+                ys = [p.y for p in f.landmark]
+                area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+                return area - SIDE_BIAS * abs((max(xs) + min(xs)) / 2.0 - DRIVER_ANCHOR)
+            fl = max(res.multi_face_landmarks, key=_score)
+            for _o in res.multi_face_landmarks:
+                if _o is fl:
+                    continue
+                _ox = [p.x * w for p in _o.landmark]
+                _oy = [p.y * h for p in _o.landmark]
+                cv2.rectangle(frame, (int(min(_ox)), int(min(_oy))),
+                              (int(max(_ox)), int(max(_oy))), (160, 160, 160), 1)
+                cv2.putText(frame, "Passenger - ignored", (int(min(_ox)), int(min(_oy)) - 8),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (160, 160, 160), 2)
             lm = np.array([(p.x * w, p.y * h) for p in fl.landmark])
             x1, y1, x2, y2 = int(lm[:, 0].min()), int(lm[:, 1].min()), \
                 int(lm[:, 0].max()), int(lm[:, 1].max())

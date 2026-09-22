@@ -37,6 +37,8 @@ GRAPH_LEN = 120
 
 LEFT_EYE = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
+DRIVER_ANCHOR = 0.30  # driver seat in Egypt = left. Camera faces cabin.
+SIDE_BIAS = 0.5       # how strongly to prefer driver side over face size
 
 mp_face = mp.solutions.face_mesh
 ctk.set_appearance_mode("dark")
@@ -169,9 +171,23 @@ class Dashboard(ctk.CTk):
             head_down, yawning_now, distracted = False, False, False
 
             if res.multi_face_landmarks:
-                fl = max(res.multi_face_landmarks, key=lambda f: (
-                    (max(p.x for p in f.landmark) - min(p.x for p in f.landmark)) *
-                    (max(p.y for p in f.landmark) - min(p.y for p in f.landmark))))
+                # driver = largest face biased to driver seat; others = passengers
+                def score(f):
+                    xs = [p.x for p in f.landmark]
+                    ys = [p.y for p in f.landmark]
+                    area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+                    cx = (max(xs) + min(xs)) / 2.0
+                    return area - SIDE_BIAS * abs(cx - DRIVER_ANCHOR)
+                fl = max(res.multi_face_landmarks, key=score)
+                for other in res.multi_face_landmarks:
+                    if other is fl:
+                        continue
+                    ox = [p.x * w for p in other.landmark]
+                    oy = [p.y * h for p in other.landmark]
+                    cv2.rectangle(frame, (int(min(ox)), int(min(oy))),
+                                  (int(max(ox)), int(max(oy))), (160, 160, 160), 1)
+                    cv2.putText(frame, "Passenger - ignored", (int(min(ox)), int(min(oy)) - 8),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (160, 160, 160), 2)
                 lm = np.array([(p.x * w, p.y * h) for p in fl.landmark])
                 cv2.rectangle(frame, (int(lm[:, 0].min()), int(lm[:, 1].min())),
                               (int(lm[:, 0].max()), int(lm[:, 1].max())), (0, 255, 0), 2)
