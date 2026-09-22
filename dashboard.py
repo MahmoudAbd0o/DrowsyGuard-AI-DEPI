@@ -78,7 +78,7 @@ def ear(pts):
 class Dashboard(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("DrowsyGuard AI - DEPI Dashboard")
+        self.title("DrowsyGuard AI | ENG. Mahmoud Abdo")
         self.geometry("1180x720")
 
         self.ear_hist = deque(maxlen=PERCLOS_WINDOW)

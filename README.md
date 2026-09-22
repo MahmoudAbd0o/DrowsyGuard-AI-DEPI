@@ -1,6 +1,6 @@
 # DrowsyGuard AI — DEPI Graduation Project
 
-Smart driver monitoring + ADAS prototype by Mahmoud (CS Year 3, AI — Digital Egypt Pioneers).
+Smart driver monitoring + ADAS prototype by ENG. Mahmoud Abdo (CS Year 3, AI — Digital Egypt Pioneers).
 
 **What it does**
 - Face box + eye-closure % (PERCLOS via EAR) + HEAD DOWN detection
@@ -27,16 +27,16 @@ Keys: `Q` quit, `M` mute beep.
 | `drowsiness_phase1.py` | + yawning (MAR) + distraction (head-turn) |
 | `test_camera.py` | Camera sanity check |
 | `arduino_bridge/arduino_bridge.ino` | Buzzer/LED/motor + ultrasonic auto-brake |
-| `TESTING.md` | 10 team test cases + bug template |
+| `TESTING.md` | 13 team test cases + bug template |
 | `PROJECT_PLAN.md` | Roadmap + pro shopping list (~1300 EGP) |
 
 ## Team testing
-See `TESTING.md`: 10 cases (eyes, yawn x2, look-away, no-face, 2 people, glasses, low light). Report Pass/Fail + EAR/MAR values.
+See `TESTING.md`: 13 cases (eyes, yawn x2, look-away, no-face, 2 people, glasses, low light, unplug camera/Arduino, passenger). Report Pass/Fail + EAR/MAR values.
 
 ## Roadmap
 - [x] Phase 0: face + eye % + risk + alert
 - [x] Phase 1: yawning + distraction
-- [ ] Dashboard (live % + graph + status)
+- [x] Dashboard (live % + graph + status + graduated alarm)
 - [ ] Arduino hardware test (buzzer/LED/brake)
 - [ ] YOLO: traffic light + speed bump
 - [ ] Telegram alert + session report + demo video
