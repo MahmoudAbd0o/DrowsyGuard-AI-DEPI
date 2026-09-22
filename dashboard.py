@@ -103,6 +103,7 @@ class Dashboard(ctk.CTk):
         self.grid_columnconfigure(0, weight=3)
         self.grid_columnconfigure(1, weight=2)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.after(100, lambda: (self.lift(), self.focus_force()))
         self.after(30, self.loop)
 
     def toggle_mute(self):
