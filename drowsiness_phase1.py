@@ -41,6 +41,9 @@ def main():
     yawn_open = 0
     yawns = deque(maxlen=16)  # timestamps
     turn_frames = 0
+    turn_hist = deque(maxlen=10)
+    turn_clear = 0
+    distract_ready_at = 0.0
 
     mesh = mp_face.FaceMesh(max_num_faces=2, refine_landmarks=True,
                             min_detection_confidence=0.5,
@@ -98,11 +101,18 @@ def main():
             face_cx = (x1 + x2) / 2.0
             face_w = max(1.0, x2 - x1)
             turn = abs(lm[1][0] - face_cx) / face_w
-            if turn > TURN_THRESH:
+            turn_hist.append(turn)
+            smooth = sum(turn_hist) / len(turn_hist)
+            if smooth > 0.22:
                 turn_frames += 1
-            else:
-                turn_frames = 0
-            distracted = turn_frames >= TURN_MIN_FRAMES
+                turn_clear = 0
+            elif smooth < 0.12:
+                turn_clear += 1
+                if turn_clear >= 15:
+                    turn_frames = 0
+                    if distracted:
+                        distract_ready_at = time.time() + 3.0
+            distracted = turn_frames >= 45 and time.time() >= distract_ready_at
 
             drowsy_eye = perclos >= PERCLOS_HIGH or (head_down and perclos > 20)
             drowsy_yawn = recent_yawns >= YAWN_ALERT_COUNT

@@ -60,6 +60,9 @@ class Dashboard(ctk.CTk):
         self.yawns = deque(maxlen=16)
         self.yawn_open = 0
         self.turn_frames = 0
+        self.turn_hist = deque(maxlen=10)
+        self.turn_clear = 0
+        self.distract_ready_at = 0.0
         self.drowsy_count = 0
         self.was_drowsy = False
         self.muted = False
@@ -194,9 +197,20 @@ class Dashboard(ctk.CTk):
 
                 face_w = max(1.0, lm[:, 0].max() - lm[:, 0].min())
                 face_cx = (lm[:, 0].max() + lm[:, 0].min()) / 2.0
-                self.turn_frames = self.turn_frames + 1 if abs(
-                    lm[1][0] - face_cx) / face_w > TURN_THRESH else 0
-                distracted = self.turn_frames >= TURN_MIN_FRAMES
+                turn = abs(lm[1][0] - face_cx) / face_w
+                self.turn_hist.append(turn)
+                smooth = sum(self.turn_hist) / len(self.turn_hist)
+                if smooth > 0.22:            # enter: clearly turned
+                    self.turn_frames += 1
+                    self.turn_clear = 0
+                elif smooth < 0.12:          # exit: back to center
+                    self.turn_clear += 1
+                    if self.turn_clear >= 15:
+                        self.turn_frames = 0
+                        if distracted:
+                            self.distract_ready_at = time.time() + 3.0  # cooldown
+                # dead zone 0.12-0.22: hold counter (no jitter)
+                distracted = self.turn_frames >= 45 and time.time() >= self.distract_ready_at
 
                 if perclos >= PERCLOS_HIGH or (head_down and perclos > 20) or recent >= YAWN_ALERT_COUNT:
                     status, color = "DROWSY - Stay Alert!", "red"
