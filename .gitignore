@@ -7,3 +7,5 @@ recordings/
 datasets/
 *.mp4
 *.avi
+
+session_report.csv
