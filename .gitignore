@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.conda/
+.vscode/
+*.log
+recordings/
+datasets/
+*.mp4
+*.avi
