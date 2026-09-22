@@ -1,25 +1,44 @@
-# DrowsyGuard AI Project — DEPI
+# DrowsyGuard AI — DEPI Graduation Project
 
-Smart driver monitoring + ADAS prototype:
-- Drowsiness detection (MediaPipe FaceMesh + EAR/PERCLOS + head-down)
-- Safe-distance auto-brake (HC-SR04)
-- Alcohol check (MQ-3), bump detection (MPU6050), in-car OLED status
-- Python AI brain + Arduino Uno actuators + Smart-car chassis
+Smart driver monitoring + ADAS prototype by Mahmoud (CS Year 3, AI — Digital Egypt Pioneers).
+
+**What it does**
+- Face box + eye-closure % (PERCLOS via EAR) + HEAD DOWN detection
+- HIGH / LOW risk + on-screen alert `Drowsiness Detected Stay Alert`
+- Yawning detection (MAR) + distraction alert (`Look Ahead!`)
+- Arduino bridge: buzzer + LEDs + motor brake + HC-SR04 auto-brake
 
 ## Quick start
 ```bash
 conda create -n drowsiness python=3.10 -y
 conda activate drowsiness
 pip install -r requirements.txt
-python test_camera.py
-python drowsiness_phase0.py   # Q quit, M mute
+python test_camera.py        # camera check, Q to quit
+python drowsiness_phase0.py  # core: face + eye % + risk
+python drowsiness_phase1.py  # + yawning + distraction
 ```
+Keys: `Q` quit, `M` mute beep.
 
-## Structure
-- `drowsiness_phase0.py` — Phase 0 vision (face box, eye %, HIGH/LOW, Stay Alert)
-- `test_camera.py` — camera check
-- `arduino_bridge/arduino_bridge.ino` — buzzer/LED/motor + ultrasonic brake
-- `PROJECT_PLAN.md` — roadmap + shopping list
+## Files
+| File | Purpose |
+|------|---------|
+| `drowsiness_phase0.py` | Face box, EAR/PERCLOS %, head-down, HIGH/LOW, Stay Alert |
+| `drowsiness_phase1.py` | + yawning (MAR) + distraction (head-turn) |
+| `test_camera.py` | Camera sanity check |
+| `arduino_bridge/arduino_bridge.ino` | Buzzer/LED/motor + ultrasonic auto-brake |
+| `TESTING.md` | 10 team test cases + bug template |
+| `PROJECT_PLAN.md` | Roadmap + pro shopping list (~1300 EGP) |
 
-## Team
-Mahmoud — CS Year 3, AI — Digital Egypt Pioneers (Rowad Misr الرقمية)
+## Team testing
+See `TESTING.md`: 10 cases (eyes, yawn x2, look-away, no-face, 2 people, glasses, low light). Report Pass/Fail + EAR/MAR values.
+
+## Roadmap
+- [x] Phase 0: face + eye % + risk + alert
+- [x] Phase 1: yawning + distraction
+- [ ] Dashboard (live % + graph + status)
+- [ ] Arduino hardware test (buzzer/LED/brake)
+- [ ] YOLO: traffic light + speed bump
+- [ ] Telegram alert + session report + demo video
+
+## Demo
+_(Coming soon: screenshot/GIF of live detection + demo video link)_
