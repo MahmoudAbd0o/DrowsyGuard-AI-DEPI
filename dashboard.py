@@ -16,6 +16,14 @@ import mediapipe as mp
 import numpy as np
 from PIL import Image
 
+try:
+    import serial
+except ImportError:
+    serial = None
+
+SERIAL_PORT = "COM5"   # change to your Arduino port (Device Manager)
+SERIAL_BAUD = 9600
+
 EAR_CLOSED_THRESH = 0.21
 PERCLOS_WINDOW = 60
 PERCLOS_HIGH = 40.0
@@ -57,6 +65,18 @@ class Dashboard(ctk.CTk):
         self.muted = False
         self.running = True
         self.alerts = []
+        self.last_level = ""
+        self.last_beep = 0.0
+        self.ser = None
+        if serial is not None:
+            try:
+                import time as _t
+                self.ser = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=1)
+                _t.sleep(2)
+                self._pending_log = f"Arduino linked on {SERIAL_PORT}."
+            except Exception as e:
+                self.ser = None
+                self._pending_log = f"Arduino not found ({e}) - vision only."
 
         self.mesh = mp_face.FaceMesh(max_num_faces=2, refine_landmarks=True,
                                      min_detection_confidence=0.5,
@@ -99,6 +119,8 @@ class Dashboard(ctk.CTk):
         self.log = ctk.CTkTextbox(self, height=180)
         self.log.grid(row=6, column=1, padx=12, pady=8, sticky="nsew")
         self.log.insert("end", "Alert log ready.\n")
+        if getattr(self, "_pending_log", ""):
+            self.log.insert("end", self._pending_log + "\n")
 
         self.grid_columnconfigure(0, weight=3)
         self.grid_columnconfigure(1, weight=2)
@@ -119,6 +141,12 @@ class Dashboard(ctk.CTk):
     def on_close(self):
         self.running = False
         self.cap.release()
+        if self.ser is not None:
+            try:
+                self.ser.write(b"0")
+                self.ser.close()
+            except Exception:
+                pass
         try:
             with open("session_report.csv", "w", newline="") as f:
                 csv.writer(f).writerows([("time", "event")] + self.alerts)
@@ -186,16 +214,50 @@ class Dashboard(ctk.CTk):
                 recent = 0
 
             self.graph_hist.append(perclos)
+            # graduated alarm: level char -> Arduino, distinct PC beep per level
+            if status.startswith("DROWSY"):
+                level = "2"
+            elif status.startswith("DISTRACTED"):
+                level = "3"
+            elif status.startswith("LOW"):
+                level = "1"
+            elif status == "No Face":
+                level = "N"
+            else:
+                level = "0"
+
+            if self.ser is not None and level != self.last_level:
+                try:
+                    self.ser.write(level.encode())
+                except Exception:
+                    try:
+                        self.ser.close()
+                    except Exception:
+                        pass
+                    self.ser = None
+            self.last_level = level
+
+            if not self.muted and level in ("1", "2", "3"):
+                now_t = time.time()
+                gap = {"1": 2.0, "3": 1.2, "2": 0.8}[level]
+                if now_t - self.last_beep > gap:
+                    self.last_beep = now_t
+                    try:
+                        import winsound
+                        if level == "2":
+                            winsound.Beep(1500, 400)          # urgent high
+                        elif level == "3":
+                            winsound.Beep(1000, 150)          # double-beep
+                            winsound.Beep(1000, 150)
+                        else:
+                            winsound.Beep(800, 150)           # soft tick
+                    except Exception:
+                        print("\a", flush=True)
+
             if status.startswith("DROWSY"):
                 if not self.was_drowsy:
                     self.drowsy_count += 1
                     self.add_log(f"DROWSINESS ALERT #{self.drowsy_count} ({perclos:.0f}%)")
-                    if not self.muted:
-                        try:
-                            import winsound
-                            winsound.Beep(1200, 400)
-                        except Exception:
-                            print("\a", flush=True)
                 self.was_drowsy = True
             else:
                 self.was_drowsy = False
