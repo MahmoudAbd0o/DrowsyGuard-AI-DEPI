@@ -73,6 +73,8 @@ class Dashboard(ctk.CTk):
         self.last_level = ""
         self.last_beep = 0.0
         self.ser = None
+        self.cam_fails = 0
+        self.vision_errors = 0
         if serial is not None:
             try:
                 import time as _t
@@ -163,9 +165,34 @@ class Dashboard(ctk.CTk):
         if not self.running:
             return
         ok, frame = self.cap.read()
+        if not ok or frame is None:
+            self.cam_fails += 1
+            if self.cam_fails == 30:
+                self.add_log("Camera lost! Reconnecting...")
+                try:
+                    self.cap.release()
+                    self.cap = cv2.VideoCapture(0)
+                except Exception:
+                    pass
+            elif self.cam_fails > 30 and self.cam_fails % 90 == 0:
+                try:
+                    self.cap.release()
+                    self.cap = cv2.VideoCapture(0)
+                except Exception:
+                    pass
+            self.after(100, self.loop)
+            return
+        self.cam_fails = 0
         if ok:
             h, w = frame.shape[:2]
-            res = self.mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            try:
+                res = self.mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            except Exception as e:
+                self.vision_errors += 1
+                if self.vision_errors <= 3:
+                    self.add_log(f"Vision hiccup ignored ({e})")
+                self.after(30, self.loop)
+                return
             perclos, avg_ear, mar = 0.0, 0.0, 0.0
             status, color = "No Face", "gray"
             head_down, yawning_now, distracted = False, False, False

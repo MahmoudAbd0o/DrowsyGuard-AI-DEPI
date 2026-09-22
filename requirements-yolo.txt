@@ -1,0 +1,4 @@
+# Heavy extras: traffic-light / speed-bump detection (YOLO).
+# Install ONLY when needed - torch is ~800MB and needs good internet/DNS.
+# pip install -r requirements-yolo.txt
+ultralytics==8.4.158

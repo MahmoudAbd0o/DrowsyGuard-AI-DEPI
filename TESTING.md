@@ -30,6 +30,9 @@ python drowsiness_phase1.py  # + yawning + distraction
 | 8 | 2 people in frame | Tracks largest face only |
 | 9 | Glasses on/off | Still works, note any drop |
 | 10 | Low light | Note accuracy drop |
+| 11 | Unplug camera mid-run 30s | "Camera lost! Reconnecting..." in log, auto-recovers, no crash |
+| 12 | Unplug Arduino mid-run | Vision keeps running + warning in log, no crash |
+| 13 | Passenger next to driver | Driver = green box, passenger = gray "ignored", alarm only for driver |
 
 ## Bug report template
 - Name / laptop / camera:

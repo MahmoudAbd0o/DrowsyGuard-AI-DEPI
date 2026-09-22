@@ -44,7 +44,12 @@ void setup() {
 }
 
 void loop() {
-  if (Serial.available()) { cmd = (char)Serial.read(); beepStep = 0; }
+  if (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c == '0' || c == '1' || c == '2' || c == '3' || c == 'N') {
+      cmd = c; beepStep = 0;
+    }
+  }
   long cm = readCm();
   char level = (cm > 0 && cm < SAFE_CM) ? '2' : cmd;  // obstacle = max danger
   unsigned long now = millis();
