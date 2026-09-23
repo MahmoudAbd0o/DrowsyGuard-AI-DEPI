@@ -130,6 +130,10 @@ class Dashboard(ctk.CTk):
         if _warm == 0:
             raise SystemExit("Camera opened but no frames (busy?). Close Zoom/Meet/other apps and retry.")
         self.last_autosave = time.time()
+        self.recording = False
+        self.writer = None
+        self.bind("<KeyPress-r>", lambda e: self.toggle_rec())
+        self.bind("<KeyPress-R>", lambda e: self.toggle_rec())
         self.last_dark_warn = 0.0
         self.stable_level = "0"
         self.stable_n = 0
@@ -190,6 +194,24 @@ class Dashboard(ctk.CTk):
         self.log.see("end")
         self.alerts.append((ts, msg))
 
+    def toggle_rec(self):
+        if not self.recording:
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*"XVID")
+                self.writer = cv2.VideoWriter("demo_session.avi", fourcc, 20.0, (640, 480))
+                self.recording = True
+                self.add_log("Recording started (demo_session.avi). Press R to stop.")
+            except Exception as e:
+                self.add_log(f"Recording failed: {e}")
+        else:
+            self.recording = False
+            try:
+                self.writer.release()
+            except Exception:
+                pass
+            self.writer = None
+            self.add_log("Recording stopped.")
+
     def _save_report(self):
         try:
             with open("session_report.csv", "w", newline="") as f:
@@ -201,6 +223,11 @@ class Dashboard(ctk.CTk):
     def on_close(self):
         self.running = False
         self.cap.release()
+        if self.writer is not None:
+            try:
+                self.writer.release()
+            except Exception:
+                pass
         if self.ser is not None:
             try:
                 self.ser.write(b"0")
@@ -408,6 +435,14 @@ class Dashboard(ctk.CTk):
             if extra:
                 cv2.putText(frame, extra.strip(), (20, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+            if self.recording:
+                cv2.circle(frame, (w - 40, 35), 12, (0, 0, 255), -1)
+                cv2.putText(frame, "REC", (w - 110, 45),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                try:
+                    self.writer.write(cv2.resize(frame, (640, 480)))
+                except Exception:
+                    pass
 
             img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).resize((640, 480))
             self.video_lbl.configure(image=ctk.CTkImage(light_image=img, size=(640, 480)), text="")
