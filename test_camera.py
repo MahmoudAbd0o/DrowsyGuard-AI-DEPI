@@ -12,6 +12,7 @@ while True:
     if not ok:
         print("ERROR: Failed to read frame.")
         break
+    frame = cv2.flip(frame, 1)  # mirror view
     cv2.putText(frame, "Camera OK - press Q", (20, 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
     cv2.imshow("test_camera", frame)

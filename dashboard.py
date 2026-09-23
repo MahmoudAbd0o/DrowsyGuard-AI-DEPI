@@ -61,8 +61,9 @@ GRAPH_LEN = 120
 
 LEFT_EYE = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
-DRIVER_ANCHOR = 0.30  # driver seat in Egypt = left. Camera faces cabin.
+DRIVER_ANCHOR = 0.70  # mirrored selfie view: Egypt driver appears right
 SIDE_BIAS = 0.5       # how strongly to prefer driver side over face size
+MIRROR = True         # flip selfie camera so screen acts like a mirror
 
 mp_face = mp.solutions.face_mesh
 ctk.set_appearance_mode("dark")
@@ -233,6 +234,8 @@ class Dashboard(ctk.CTk):
             return
         self.cam_fails = 0
         if ok:
+            if MIRROR:
+                frame = cv2.flip(frame, 1)
             h, w = frame.shape[:2]
             _gs = cv2.cvtColor(cv2.resize(frame, (80, 60)), cv2.COLOR_BGR2GRAY)
             _bright = float(_gs.mean())
