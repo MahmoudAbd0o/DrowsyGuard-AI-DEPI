@@ -58,6 +58,10 @@ YAWN_ALERT_COUNT = 2
 TURN_THRESH = 0.18
 TURN_MIN_FRAMES = 30
 GRAPH_LEN = 120
+ATT_HIGH = 70  # attention % >= this => High
+ATT_MED = 40   # attention % >= this => Medium, else Low
+ATT_BGR = {"green": (0, 200, 0), "orange": (0, 165, 255),
+           "yellow": (0, 255, 255), "red": (0, 0, 255), "gray": (160, 160, 160)}
 
 LEFT_EYE = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
@@ -76,11 +80,42 @@ def ear(pts):
     return (v1 + v2) / (2.0 * h + 1e-6)
 
 
+def attention_score(perclos, head_down, distracted, recent_yawns, yawning_now, status):
+    # 0-100 attention meter: eye closure is the main factor,
+    # head-turn / head-down / yawns add penalties.
+    # Caps keep it consistent with the main status.
+    att = 100.0 - perclos
+    if head_down:
+        att -= 10
+    if distracted:
+        att -= 15
+    att -= 8 * min(recent_yawns, 2)
+    if yawning_now:
+        att -= 5
+    if status.startswith("DROWSY"):
+        att = min(att, 35)
+    elif status.startswith("DISTRACTED"):
+        att = min(att, 55)
+    elif status.startswith("LOW"):
+        att = min(att, 69)
+    return max(0.0, min(100.0, att))
+
+
+def attention_level(att):
+    if att is None:
+        return ("--", "gray")
+    if att >= ATT_HIGH:
+        return ("High", "green")
+    if att >= ATT_MED:
+        return ("Medium", "orange")
+    return ("Low", "red")
+
+
 class Dashboard(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("DrowsyGuard AI | ENG. Mahmoud Abdo")
-        self.geometry("1180x720")
+        self.geometry("1180x760")
 
         self.ear_hist = deque(maxlen=PERCLOS_WINDOW)
         self.graph_hist = deque(maxlen=GRAPH_LEN)
@@ -92,6 +127,7 @@ class Dashboard(ctk.CTk):
         self.distract_ready_at = 0.0
         self.drowsy_count = 0
         self.was_drowsy = False
+        self.was_low_att = False
         self.muted = False
         self.running = True
         self.alerts = []
@@ -140,7 +176,7 @@ class Dashboard(ctk.CTk):
 
         # --- layout: video left, stats right ---
         self.video_lbl = ctk.CTkLabel(self, text="")
-        self.video_lbl.grid(row=0, column=0, rowspan=6, padx=12, pady=12, sticky="nsew")
+        self.video_lbl.grid(row=0, column=0, rowspan=8, padx=12, pady=12, sticky="nsew")
 
         self.status_lbl = ctk.CTkLabel(self, text="Starting...", font=("Arial", 24, "bold"))
         self.status_lbl.grid(row=0, column=1, padx=12, pady=(12, 4), sticky="ew")
@@ -156,8 +192,14 @@ class Dashboard(ctk.CTk):
         self.count_lbl = ctk.CTkLabel(self, text="Drowsy: 0 | Yawns(90s): 0", font=("Arial", 16))
         self.count_lbl.grid(row=4, column=1, padx=12, sticky="ew")
 
+        self.att_lbl = ctk.CTkLabel(self, text="Attention: --", font=("Arial", 18, "bold"))
+        self.att_lbl.grid(row=5, column=1, padx=12, sticky="ew")
+        self.att_bar = ctk.CTkProgressBar(self)
+        self.att_bar.set(0)
+        self.att_bar.grid(row=6, column=1, padx=12, sticky="ew")
+
         self.mute_btn = ctk.CTkButton(self, text="Mute: OFF", command=self.toggle_mute)
-        self.mute_btn.grid(row=5, column=1, padx=12, pady=4, sticky="ew")
+        self.mute_btn.grid(row=7, column=1, padx=12, pady=4, sticky="ew")
 
         # --- graph bottom-left ---
         self.fig = Figure(figsize=(5.4, 2.4), dpi=90)
@@ -166,11 +208,11 @@ class Dashboard(ctk.CTk):
         self.ax.set_title("Eye closure % (live)")
         self.line, = self.ax.plot([], [])
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.canvas.get_tk_widget().grid(row=6, column=0, padx=12, pady=8, sticky="nsew")
+        self.canvas.get_tk_widget().grid(row=8, column=0, padx=12, pady=8, sticky="nsew")
 
         # --- alert log bottom-right ---
         self.log = ctk.CTkTextbox(self, height=180)
-        self.log.grid(row=6, column=1, padx=12, pady=8, sticky="nsew")
+        self.log.grid(row=8, column=1, padx=12, pady=8, sticky="nsew")
         self.log.insert("end", "Alert log ready.\n")
         self.log.insert("end", f"Python {sys.version_info[0]}.{sys.version_info[1]} (verified: 3.10).\n")
         if getattr(self, "_pending_cam", ""):
@@ -356,11 +398,16 @@ class Dashboard(ctk.CTk):
                 else:
                     status, color = "ALERT - Safe", "green"
 
+                attention = attention_score(perclos, head_down, distracted,
+                                            recent, yawning_now, status)
+                att_text, att_color = attention_level(attention)
+
                 for i in LEFT_EYE + RIGHT_EYE:
                     cv2.circle(frame, (int(lm[i][0]), int(lm[i][1])), 2, (255, 0, 0), -1)
             else:
                 self.ear_hist.append(0)
                 recent = 0
+                attention, (att_text, att_color) = None, attention_level(None)
 
             self.graph_hist.append(perclos)
             # graduated alarm: level char -> Arduino, distinct PC beep per level
@@ -429,12 +476,40 @@ class Dashboard(ctk.CTk):
             self.ear_lbl.configure(text=f"EAR: {avg_ear:.2f}  MAR: {mar:.2f}")
             self.count_lbl.configure(
                 text=f"Drowsy: {self.drowsy_count} | Yawns(90s): {len([t for t in self.yawns if time.time()-t < 90])}")
+            if attention is None:
+                self.att_lbl.configure(text="Attention: --", text_color="gray")
+                self.att_bar.set(0)
+            else:
+                self.att_lbl.configure(text=f"Attention: {attention:.0f}% ({att_text})",
+                                       text_color=att_color)
+                self.att_bar.set(attention / 100.0)
+                try:
+                    self.att_bar.configure(progress_color=att_color)
+                except Exception:
+                    pass
+            if att_text == "Low" and res.multi_face_landmarks:
+                if not self.was_low_att:
+                    self.add_log(f"Attention LOW ({attention:.0f}%) - {status}")
+                self.was_low_att = True
+            else:
+                self.was_low_att = False
             extra = "HEAD DOWN" if head_down and res.multi_face_landmarks else ""
             if yawning_now:
                 extra += " YAWNING..."
             if extra:
                 cv2.putText(frame, extra.strip(), (20, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+            # video side-panel (TikTok style): Eyes / Head Pose / Attention
+            if res.multi_face_landmarks:
+                eyes_state = "Closed" if perclos >= PERCLOS_HIGH else ("Closing" if perclos > 15 else "Open")
+                hp_state = "Down" if head_down else "Normal"
+                for _j, (_txt, _c) in enumerate([
+                    (f"Eyes: {eyes_state}", (255, 255, 255)),
+                    (f"Head Pose: {hp_state}", (255, 255, 255)),
+                    (f"Attention: {att_text}", ATT_BGR.get(att_color, (255, 255, 255))),
+                ]):
+                    cv2.putText(frame, _txt, (max(10, w - 230), 24 + _j * 24),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.55, _c, 1)
             if self.recording:
                 cv2.circle(frame, (w - 40, 35), 12, (0, 0, 255), -1)
                 cv2.putText(frame, "REC", (w - 110, 45),
