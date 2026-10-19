@@ -88,6 +88,23 @@ print(metrics)   # precision, recall, f1, false_positive_rate, accuracy
 `detection_latencies(times, true_flags, pred_flags)` returns the delay between
 each event onset and its first correct detection.
 
+## Speed-bump model (`bump_model.pt`)
+`yolo_phase2.py` detects speed bumps **only if** `bump_model.pt` sits next to it.
+The weights are binary and not committed to git — build them once:
+
+**Option A — Kaggle (free GPU, recommended)**
+1. Open the [Urban Road Hazard dataset](https://www.kaggle.com/datasets/shuaifanpi/urban-road-hazard-datasetyolo-format) → **New Notebook**
+2. Settings → Accelerator `GPU T4` · Internet `On`
+3. Upload `notebooks/train_bump_kaggle.ipynb` → **Run All** (~45 min)
+4. Download `bump_model.zip` from the Output panel → extract `bump_model.pt` next to `yolo_phase2.py`
+
+**Option B — local**
+```bash
+python tools/prepare_bump_dataset.py "path/to/Urban Road Hazard Dataset" --out datasets/bump
+python train_bump.py --data datasets/bump/data.yaml --epochs 50 --batch 8
+```
+Local GPU training needs a CUDA build of PyTorch (`pip install torch --index-url https://download.pytorch.org/whl/cu121`).
+
 ## Files
 | File | Purpose |
 |------|---------|
