@@ -1,12 +1,20 @@
 """
 DrowsyGuard AI - Dashboard (CustomTkinter)
+
 Run:
-  C:\\Users\\EL-Mostwred\\anaconda3\\envs\\drowsiness\\python.exe dashboard.py
+  python dashboard.py
+
+Architecture:
+  vision.camera.Camera          -> video capture + reconnect
+  vision.face_detector          -> MediaPipe landmarks + driver selection
+  ai.features / ai.perclos      -> measurements
+  ai.attention / ai.drowsiness  -> score + state
+  hardware.protocol             -> serial commands + debounce
+  data.logger                   -> session log + event log
 """
-from collections import deque
-import csv
 import sys
 import time
+from collections import deque
 from datetime import datetime
 
 try:
@@ -23,11 +31,11 @@ try:
 except ImportError:
     raise SystemExit("Missing matplotlib. Run: pip install -r requirements.txt")
 try:
-    import mediapipe as mp
+    import mediapipe as mp  # noqa: F401  (checked here for a friendly error)
 except ImportError:
     raise SystemExit("Missing mediapipe. Run: pip install -r requirements.txt")
 try:
-    import numpy as np
+    import numpy as np  # noqa: F401
 except ImportError:
     raise SystemExit("Missing numpy. Run: pip install -r requirements.txt")
 try:
@@ -35,80 +43,38 @@ try:
 except ImportError:
     raise SystemExit("Missing pillow. Run: pip install -r requirements.txt")
 
-if sys.version_info[:2] != (3, 10):
-    print(f"WARNING: Python {sys.version_info[0]}.{sys.version_info[1]} detected. "
-          f"This project is verified on Python 3.10 (mediapipe==0.10.9). "
-          f"Create env: conda create -n drowsiness python=3.10 -y")
+import config
+from ai import drowsiness as ds
+from ai import features
+from ai.attention import attention_level, attention_score
+from ai.drowsiness import DecisionEngine
+from ai.perclos import PerclosMeter
+from data.logger import EventLog, MeasurementLogger
+from hardware.protocol import LevelDebouncer, command_for_state
+from vision.camera import Camera
+from vision.face_detector import FaceDetector, select_driver
 
 try:
     import serial
 except ImportError:
     serial = None
 
-SERIAL_PORT = "COM5"   # change to your Arduino port (Device Manager)
-SERIAL_BAUD = 9600
+if sys.version_info[:2] != (3, 10):
+    print(f"WARNING: Python {sys.version_info[0]}.{sys.version_info[1]} detected. "
+          f"This project is verified on Python 3.10 (mediapipe==0.10.9). "
+          f"Create env: conda create -n drowsiness python=3.10 -y")
 
-EAR_CLOSED_THRESH = 0.21
-PERCLOS_WINDOW = 60
-PERCLOS_HIGH = 40.0
-HEAD_DOWN_THRESH = 0.55
-MAR_YAWN_THRESH = 0.60
-YAWN_MIN_FRAMES = 12
-YAWN_ALERT_COUNT = 2
-TURN_THRESH = 0.18
-TURN_MIN_FRAMES = 30
-GRAPH_LEN = 120
-ATT_HIGH = 70  # attention % >= this => High
-ATT_MED = 40   # attention % >= this => Medium, else Low
-ATT_BGR = {"green": (0, 200, 0), "orange": (0, 165, 255),
-           "yellow": (0, 255, 255), "red": (0, 0, 255), "gray": (160, 160, 160)}
+# State -> (label shown on screen, colour name)
+STATE_DISPLAY = {
+    ds.ALERT: ("ALERT - Safe", "green"),
+    ds.LOW_RISK: ("LOW RISK - Blinking/Yawn", "yellow"),
+    ds.DISTRACTED: ("DISTRACTED - Look Ahead!", "orange"),
+    ds.DROWSY: ("DROWSY - Stay Alert!", "red"),
+    ds.UNKNOWN: ("UNKNOWN - No face / low data", "gray"),
+    ds.CAMERA_ERROR: ("CAMERA ERROR", "gray"),
+}
 
-LEFT_EYE = [33, 160, 158, 133, 153, 144]
-RIGHT_EYE = [362, 385, 387, 263, 373, 380]
-DRIVER_ANCHOR = 0.70  # mirrored selfie view: Egypt driver appears right
-SIDE_BIAS = 0.5       # how strongly to prefer driver side over face size
-MIRROR = True         # flip selfie camera so screen acts like a mirror
-
-mp_face = mp.solutions.face_mesh
 ctk.set_appearance_mode("dark")
-
-
-def ear(pts):
-    v1 = np.linalg.norm(pts[1] - pts[5])
-    v2 = np.linalg.norm(pts[2] - pts[4])
-    h = np.linalg.norm(pts[0] - pts[3])
-    return (v1 + v2) / (2.0 * h + 1e-6)
-
-
-def attention_score(perclos, head_down, distracted, recent_yawns, yawning_now, status):
-    # 0-100 attention meter: eye closure is the main factor,
-    # head-turn / head-down / yawns add penalties.
-    # Caps keep it consistent with the main status.
-    att = 100.0 - perclos
-    if head_down:
-        att -= 10
-    if distracted:
-        att -= 15
-    att -= 8 * min(recent_yawns, 2)
-    if yawning_now:
-        att -= 5
-    if status.startswith("DROWSY"):
-        att = min(att, 35)
-    elif status.startswith("DISTRACTED"):
-        att = min(att, 55)
-    elif status.startswith("LOW"):
-        att = min(att, 69)
-    return max(0.0, min(100.0, att))
-
-
-def attention_level(att):
-    if att is None:
-        return ("--", "gray")
-    if att >= ATT_HIGH:
-        return ("High", "green")
-    if att >= ATT_MED:
-        return ("Medium", "orange")
-    return ("Low", "red")
 
 
 class Dashboard(ctk.CTk):
@@ -117,8 +83,11 @@ class Dashboard(ctk.CTk):
         self.title("DrowsyGuard AI | ENG. Mahmoud Abdo")
         self.geometry("1180x760")
 
-        self.ear_hist = deque(maxlen=PERCLOS_WINDOW)
-        self.graph_hist = deque(maxlen=GRAPH_LEN)
+        # --- state / measurement objects ---
+        self.perclos_meter = PerclosMeter()
+        self.engine = DecisionEngine()
+        self.debouncer = LevelDebouncer()
+        self.graph_hist = deque(maxlen=config.GRAPH_LEN)
         self.yawns = deque(maxlen=16)
         self.yawn_open = 0
         self.turn_frames = 0
@@ -130,49 +99,39 @@ class Dashboard(ctk.CTk):
         self.was_low_att = False
         self.muted = False
         self.running = True
-        self.alerts = []
         self.last_level = ""
         self.last_beep = 0.0
         self.ser = None
-        self.cam_fails = 0
         self.vision_errors = 0
+        self._last_reconnects = 0
+
+        # --- logging ---
+        self.meas_log = MeasurementLogger()
+        self.event_log = EventLog(config.SESSION_REPORT)
+
+        # --- serial ---
         if serial is not None:
             try:
-                import time as _t
-                self.ser = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=1)
-                _t.sleep(2)
-                self._pending_log = f"Arduino linked on {SERIAL_PORT}."
+                self.ser = serial.Serial(config.SERIAL_PORT, config.SERIAL_BAUD, timeout=1)
+                time.sleep(2)
+                self._pending_log = f"Arduino linked on {config.SERIAL_PORT}."
             except Exception as e:
                 self.ser = None
                 self._pending_log = f"Arduino not found ({e}) - vision only."
 
-        self.mesh = mp_face.FaceMesh(max_num_faces=2, refine_landmarks=True,
-                                     min_detection_confidence=0.5,
-                                     min_tracking_confidence=0.5)
-        self.cap = None
-        for _idx in (0, 1, 2):  # fallback: try every camera (laptops/IR cams)
-            _c = cv2.VideoCapture(_idx)
-            if _c.isOpened():
-                self.cap = _c
-                self._pending_cam = f"Camera {_idx} opened."
-                break
-        if self.cap is None:
+        # --- vision ---
+        self.detector = FaceDetector()
+        self.cam = Camera()
+        if not self.cam.open():
             raise SystemExit("No camera found (tried 0,1,2). Check cable/privacy settings.")
-        _warm = 0
-        for _ in range(10):  # warmup: camera may be held by Zoom/Meet
-            _ok, _f = self.cap.read()
-            if _ok and _f is not None:
-                _warm += 1
-        if _warm == 0:
-            raise SystemExit("Camera opened but no frames (busy?). Close Zoom/Meet/other apps and retry.")
+        self._pending_cam = f"Camera {self.cam.index} opened."
+
         self.last_autosave = time.time()
         self.recording = False
         self.writer = None
         self.bind("<KeyPress-r>", lambda e: self.toggle_rec())
         self.bind("<KeyPress-R>", lambda e: self.toggle_rec())
         self.last_dark_warn = 0.0
-        self.stable_level = "0"
-        self.stable_n = 0
 
         # --- layout: video left, stats right ---
         self.video_lbl = ctk.CTkLabel(self, text="")
@@ -226,6 +185,7 @@ class Dashboard(ctk.CTk):
         self.after(100, lambda: (self.lift(), self.focus_force()))
         self.after(30, self.loop)
 
+    # ------------------------------------------------------------- controls --
     def toggle_mute(self):
         self.muted = not self.muted
         self.mute_btn.configure(text=f"Mute: {'ON' if self.muted else 'OFF'}")
@@ -234,13 +194,15 @@ class Dashboard(ctk.CTk):
         ts = datetime.now().strftime("%H:%M:%S")
         self.log.insert("end", f"[{ts}] {msg}\n")
         self.log.see("end")
-        self.alerts.append((ts, msg))
+        self.event_log.add(msg, timestamp=ts)
 
     def toggle_rec(self):
         if not self.recording:
             try:
                 fourcc = cv2.VideoWriter_fourcc(*"XVID")
-                self.writer = cv2.VideoWriter("demo_session.avi", fourcc, 20.0, (640, 480))
+                self.writer = cv2.VideoWriter("demo_session.avi", fourcc,
+                                              config.RECORD_FPS,
+                                              (config.FRAME_WIDTH, config.FRAME_HEIGHT))
                 self.recording = True
                 self.add_log("Recording started (demo_session.avi). Press R to stop.")
             except Exception as e:
@@ -255,16 +217,16 @@ class Dashboard(ctk.CTk):
             self.add_log("Recording stopped.")
 
     def _save_report(self):
-        try:
-            with open("session_report.csv", "w", newline="") as f:
-                csv.writer(f).writerows([("time", "event")] + self.alerts)
-            return True
-        except Exception:
-            return False
+        return self.event_log.save()
 
     def on_close(self):
         self.running = False
-        self.cap.release()
+        self.cam.release()
+        self.detector.close()
+        try:
+            self.meas_log.close()
+        except Exception:
+            pass
         if self.writer is not None:
             try:
                 self.writer.release()
@@ -280,252 +242,273 @@ class Dashboard(ctk.CTk):
             print("WARNING: could not save session_report.csv (folder read-only?).")
         self.destroy()
 
+    # ----------------------------------------------------------------- loop --
     def loop(self):
         if not self.running:
             return
-        ok, frame = self.cap.read()
-        if not ok or frame is None:
-            self.cam_fails += 1
-            if self.cam_fails == 30:
+
+        frame = self.cam.read()
+        if frame is None:
+            if self.cam.reconnects != self._last_reconnects:
+                self._last_reconnects = self.cam.reconnects
                 self.add_log("Camera lost! Reconnecting...")
-                try:
-                    self.cap.release()
-                    self.cap = cv2.VideoCapture(0)
-                except Exception:
-                    pass
-            elif self.cam_fails > 30 and self.cam_fails % 90 == 0:
-                try:
-                    self.cap.release()
-                    self.cap = cv2.VideoCapture(0)
-                except Exception:
-                    pass
+            if self.cam.dead:
+                self.add_log("Camera did not come back. Rerun the app.")
+                self.running = False
             self.after(100, self.loop)
             return
-        self.cam_fails = 0
-        if ok:
-            if MIRROR:
-                frame = cv2.flip(frame, 1)
-            h, w = frame.shape[:2]
-            _gs = cv2.cvtColor(cv2.resize(frame, (80, 60)), cv2.COLOR_BGR2GRAY)
-            _bright = float(_gs.mean())
-            if _bright < 40.0:  # night/low-light: warn + auto-enhance
-                if time.time() - self.last_dark_warn > 10:
-                    self.last_dark_warn = time.time()
-                    self.add_log(f"Low light ({_bright:.0f}) - accuracy reduced.")
-                _lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-                _l, _a, _b = cv2.split(_lab)
-                _l = cv2.createCLAHE(2.0, (8, 8)).apply(_l)
-                frame = cv2.cvtColor(cv2.merge((_l, _a, _b)), cv2.COLOR_LAB2BGR)
-            try:
-                res = self.mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            except Exception as e:
-                self.vision_errors += 1
-                if self.vision_errors <= 3:
-                    self.add_log(f"Vision hiccup ignored ({e})")
-                self.after(30, self.loop)
-                return
-            perclos, avg_ear, mar = 0.0, 0.0, 0.0
-            status, color = "No Face", "gray"
-            face_frac = 1.0
-            head_down, yawning_now, distracted = False, False, False
 
-            if res.multi_face_landmarks:
-                # driver = largest face biased to driver seat; others = passengers
-                def score(f):
-                    xs = [p.x for p in f.landmark]
-                    ys = [p.y for p in f.landmark]
-                    area = (max(xs) - min(xs)) * (max(ys) - min(ys))
-                    cx = (max(xs) + min(xs)) / 2.0
-                    return area - SIDE_BIAS * abs(cx - DRIVER_ANCHOR)
-                fl = max(res.multi_face_landmarks, key=score)
-                for other in res.multi_face_landmarks:
-                    if other is fl:
-                        continue
-                    ox = [p.x * w for p in other.landmark]
-                    oy = [p.y * h for p in other.landmark]
-                    cv2.rectangle(frame, (int(min(ox)), int(min(oy))),
-                                  (int(max(ox)), int(max(oy))), (160, 160, 160), 1)
-                    cv2.putText(frame, "Passenger - ignored", (int(min(ox)), int(min(oy)) - 8),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (160, 160, 160), 2)
-                lm = np.array([(p.x * w, p.y * h) for p in fl.landmark])
-                face_frac = ((lm[:, 0].max() - lm[:, 0].min()) *
-                             (lm[:, 1].max() - lm[:, 1].min())) / max(1.0, w * h)
-                cv2.rectangle(frame, (int(lm[:, 0].min()), int(lm[:, 1].min())),
-                              (int(lm[:, 0].max()), int(lm[:, 1].max())), (0, 255, 0), 2)
-                avg_ear = (ear(lm[LEFT_EYE]) + ear(lm[RIGHT_EYE])) / 2.0
-                self.ear_hist.append(1 if avg_ear < EAR_CLOSED_THRESH else 0)
-                perclos = 100.0 * sum(self.ear_hist) / max(1, len(self.ear_hist))
+        if config.MIRROR:
+            frame = cv2.flip(frame, 1)
+        h, w = frame.shape[:2]
 
-                mh = np.linalg.norm(lm[13] - lm[14])
-                mw = np.linalg.norm(lm[78] - lm[308])
-                mar = mh / (mw + 1e-6)
-                if mar > MAR_YAWN_THRESH:
+        _gs = cv2.cvtColor(cv2.resize(frame, (80, 60)), cv2.COLOR_BGR2GRAY)
+        brightness = float(_gs.mean())
+        if brightness < 40.0:  # night/low-light: warn + auto-enhance
+            if time.time() - self.last_dark_warn > 10:
+                self.last_dark_warn = time.time()
+                self.add_log(f"Low light ({brightness:.0f}) - accuracy reduced.")
+            _lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+            _l, _a, _b = cv2.split(_lab)
+            _l = cv2.createCLAHE(2.0, (8, 8)).apply(_l)
+            frame = cv2.cvtColor(cv2.merge((_l, _a, _b)), cv2.COLOR_LAB2BGR)
+
+        try:
+            faces = self.detector.process(frame)
+        except Exception as e:
+            self.vision_errors += 1
+            if self.vision_errors <= 3:
+                self.add_log(f"Vision hiccup ignored ({e})")
+            self.after(30, self.loop)
+            return
+
+        now = time.monotonic()
+        face_present = bool(faces)
+        perclos = None
+        avg_ear = None
+        mar = None
+        head_down = False
+        yawning_now = False
+        distracted = False
+        recent = 0
+        too_far = False
+        lm = None
+
+        if face_present:
+            driver_idx = select_driver(faces, w, h)
+            for i, other in enumerate(faces):
+                if i == driver_idx:
+                    continue
+                ox, oy = other[:, 0], other[:, 1]
+                cv2.rectangle(frame, (int(ox.min()), int(oy.min())),
+                              (int(ox.max()), int(oy.max())), config.BGR_GRAY, 1)
+                cv2.putText(frame, "Passenger - ignored", (int(ox.min()), int(oy.min()) - 8),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, config.BGR_GRAY, 2)
+
+            lm = faces[driver_idx]
+            box = features.face_bbox(lm)
+            if box is not None:
+                cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), config.BGR_GREEN, 2)
+            too_far = features.face_fraction(lm, w, h) < 0.02
+
+            avg_ear = features.average_ear(lm)
+            eye_closed = None if avg_ear is None else (avg_ear < config.EAR_CLOSED_THRESH)
+            perclos = self.perclos_meter.update(now, eye_closed)
+
+            mar = features.mar(lm)
+            if mar is not None:
+                if mar > config.MAR_YAWN_THRESH:
                     self.yawn_open += 1
                 else:
-                    if self.yawn_open >= YAWN_MIN_FRAMES:
+                    if self.yawn_open >= config.YAWN_MIN_FRAMES:
                         self.yawns.append(time.time())
                         self.add_log(f"Yawn detected (MAR={mar:.2f})")
                     self.yawn_open = 0
-                yawning_now = self.yawn_open >= YAWN_MIN_FRAMES
-                recent = len([t for t in self.yawns if time.time() - t < 90])
+                yawning_now = self.yawn_open >= config.YAWN_MIN_FRAMES
+            recent = len([t for t in self.yawns if time.time() - t < config.YAWN_WINDOW_SEC])
 
-                eye_y = (lm[33][1] + lm[263][1]) / 2.0
-                head_down = (lm[1][1] - eye_y) / max(1.0, (lm[152][1] - eye_y)) > HEAD_DOWN_THRESH
+            hd = features.head_down_ratio(lm)
+            head_down = hd is not None and hd > config.HEAD_DOWN_THRESH
 
-                face_w = max(1.0, lm[:, 0].max() - lm[:, 0].min())
-                face_cx = (lm[:, 0].max() + lm[:, 0].min()) / 2.0
-                turn = abs(lm[1][0] - face_cx) / face_w
+            turn = features.head_turn_ratio(lm)
+            if turn is not None:
                 self.turn_hist.append(turn)
                 smooth = sum(self.turn_hist) / len(self.turn_hist)
-                if smooth > 0.22:            # enter: clearly turned
+                if smooth > config.TURN_ENTER:      # enter: clearly turned
                     self.turn_frames += 1
                     self.turn_clear = 0
-                elif smooth < 0.12:          # exit: back to center
+                elif smooth < config.TURN_EXIT:     # exit: back to center
                     self.turn_clear += 1
-                    if self.turn_clear >= 15:
+                    if self.turn_clear >= config.TURN_CLEAR_FRAMES:
                         self.turn_frames = 0
                         if distracted:
-                            self.distract_ready_at = time.time() + 3.0  # cooldown
-                # dead zone 0.12-0.22: hold counter (no jitter)
-                distracted = self.turn_frames >= 45 and time.time() >= self.distract_ready_at
+                            self.distract_ready_at = now + config.DISTRACT_COOLDOWN_SEC
+                # dead zone between TURN_EXIT and TURN_ENTER: hold counter (no jitter)
+                distracted = (self.turn_frames >= config.TURN_MIN_FRAMES
+                              and now >= self.distract_ready_at)
+        else:
+            perclos = self.perclos_meter.update(now, None)
 
-                if perclos >= PERCLOS_HIGH or (head_down and perclos > 20) or recent >= YAWN_ALERT_COUNT:
-                    status, color = "DROWSY - Stay Alert!", "red"
-                elif distracted:
-                    status, color = "DISTRACTED - Look Ahead!", "orange"
-                elif perclos > 15 or yawning_now:
-                    status, color = "LOW RISK", "yellow"
-                else:
-                    status, color = "ALERT - Safe", "green"
+        # ------------------------------------------------------- decision --
+        decision = self.engine.evaluate(
+            perclos=perclos,
+            head_down=head_down,
+            distracted=distracted,
+            recent_yawns=recent,
+            yawning_now=yawning_now,
+            face_present=face_present,
+            too_far=too_far,
+        )
+        state = decision.state
+        level = command_for_state(state)
+        stable_level = self.debouncer.update(level)
 
-                attention = attention_score(perclos, head_down, distracted,
-                                            recent, yawning_now, status)
-                att_text, att_color = attention_level(attention)
+        attention = None
+        if perclos is not None and state not in (ds.UNKNOWN, ds.CAMERA_ERROR):
+            attention = attention_score(perclos, head_down, distracted,
+                                        recent, yawning_now, state)
+        att_text, att_color = attention_level(attention)
 
-                for i in LEFT_EYE + RIGHT_EYE:
-                    cv2.circle(frame, (int(lm[i][0]), int(lm[i][1])), 2, (255, 0, 0), -1)
-            else:
-                self.ear_hist.append(0)
-                recent = 0
-                attention, (att_text, att_color) = None, attention_level(None)
-
-            self.graph_hist.append(perclos)
-            # graduated alarm: level char -> Arduino, distinct PC beep per level
-            if face_frac < 0.02 and res.multi_face_landmarks:
-                status, color = "Too far - move closer", "gray"
-            if status.startswith("DROWSY"):
-                level = "2"
-            elif status.startswith("DISTRACTED"):
-                level = "3"
-            elif status.startswith("LOW"):
-                level = "1"
-            elif status == "No Face":
-                level = "N"
-            else:
-                level = "0"
-
-            # debounce: level must hold 5 frames before alarm/serial reacts
-            if level == getattr(self, "_raw", "0"):
-                self.stable_n += 1
-            else:
-                self._raw = level
-                self.stable_n = 0
-            if self.stable_n >= 5:
-                self.stable_level = level
-            level = self.stable_level
-
-            if self.ser is not None and level != self.last_level:
+        # --------------------------------------------------------- serial --
+        if self.ser is not None and stable_level != self.last_level:
+            try:
+                self.ser.write(stable_level.encode())
+            except Exception:
                 try:
-                    self.ser.write(level.encode())
+                    self.ser.close()
                 except Exception:
-                    try:
-                        self.ser.close()
-                    except Exception:
-                        pass
-                    self.ser = None
-            self.last_level = level
+                    pass
+                self.ser = None
+        self.last_level = stable_level
 
-            if not self.muted and level in ("1", "2", "3"):
-                now_t = time.time()
-                gap = {"1": 2.0, "3": 1.2, "2": 0.8}[level]
-                if now_t - self.last_beep > gap:
-                    self.last_beep = now_t
-                    try:
-                        import winsound
-                        if level == "2":
-                            winsound.Beep(1500, 400)          # urgent high
-                        elif level == "3":
-                            winsound.Beep(1000, 150)          # double-beep
-                            winsound.Beep(1000, 150)
-                        else:
-                            winsound.Beep(800, 150)           # soft tick
-                    except Exception:
-                        print("\a", flush=True)
+        # ----------------------------------------------------------- beep --
+        if not self.muted and stable_level in ("1", "2", "3"):
+            gap = {"1": 2.0, "3": 1.2, "2": 0.8}[stable_level]
+            if now - self.last_beep > gap:
+                self.last_beep = now
+                try:
+                    import winsound
+                    if stable_level == "2":
+                        winsound.Beep(1500, 400)          # urgent high
+                    elif stable_level == "3":
+                        winsound.Beep(1000, 150)          # double-beep
+                        winsound.Beep(1000, 150)
+                    else:
+                        winsound.Beep(800, 150)           # soft tick
+                except Exception:
+                    print("\a", flush=True)
 
-            if status.startswith("DROWSY"):
-                if not self.was_drowsy:
-                    self.drowsy_count += 1
-                    self.add_log(f"DROWSINESS ALERT #{self.drowsy_count} ({perclos:.0f}%)")
-                self.was_drowsy = True
-            else:
-                self.was_drowsy = False
+        # ---------------------------------------------------------- logs --
+        if state == ds.DROWSY:
+            if not self.was_drowsy:
+                self.drowsy_count += 1
+                pct = f"{perclos:.0f}%" if perclos is not None else "--"
+                self.add_log(f"DROWSINESS ALERT #{self.drowsy_count} ({pct}) - {decision.reason}")
+            self.was_drowsy = True
+        else:
+            self.was_drowsy = False
 
-            self.status_lbl.configure(text=status, text_color=color)
+        if att_text == "Low" and face_present:
+            if not self.was_low_att:
+                self.add_log(f"Attention LOW ({attention:.0f}%) - {state}")
+            self.was_low_att = True
+        else:
+            self.was_low_att = False
+
+        # -------------------------------------------------------------- UI --
+        label, color = STATE_DISPLAY.get(state, (state, "gray"))
+        self.status_lbl.configure(text=label, text_color=color)
+
+        if perclos is None:
+            self.perc_lbl.configure(text="Eye closed: --")
+            self.bar.set(0)
+        else:
             self.perc_lbl.configure(text=f"Eye closed: {perclos:.0f}%")
             self.bar.set(perclos / 100.0)
-            self.ear_lbl.configure(text=f"EAR: {avg_ear:.2f}  MAR: {mar:.2f}")
-            self.count_lbl.configure(
-                text=f"Drowsy: {self.drowsy_count} | Yawns(90s): {len([t for t in self.yawns if time.time()-t < 90])}")
-            if attention is None:
-                self.att_lbl.configure(text="Attention: --", text_color="gray")
-                self.att_bar.set(0)
-            else:
-                self.att_lbl.configure(text=f"Attention: {attention:.0f}% ({att_text})",
-                                       text_color=att_color)
-                self.att_bar.set(attention / 100.0)
-                try:
-                    self.att_bar.configure(progress_color=att_color)
-                except Exception:
-                    pass
-            if att_text == "Low" and res.multi_face_landmarks:
-                if not self.was_low_att:
-                    self.add_log(f"Attention LOW ({attention:.0f}%) - {status}")
-                self.was_low_att = True
-            else:
-                self.was_low_att = False
-            extra = "HEAD DOWN" if head_down and res.multi_face_landmarks else ""
-            if yawning_now:
-                extra += " YAWNING..."
-            if extra:
-                cv2.putText(frame, extra.strip(), (20, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-            # video side-panel (TikTok style): Eyes / Head Pose / Attention
-            if res.multi_face_landmarks:
-                eyes_state = "Closed" if perclos >= PERCLOS_HIGH else ("Closing" if perclos > 15 else "Open")
-                hp_state = "Down" if head_down else "Normal"
-                for _j, (_txt, _c) in enumerate([
-                    (f"Eyes: {eyes_state}", (255, 255, 255)),
-                    (f"Head Pose: {hp_state}", (255, 255, 255)),
-                    (f"Attention: {att_text}", ATT_BGR.get(att_color, (255, 255, 255))),
-                ]):
-                    cv2.putText(frame, _txt, (max(10, w - 230), 24 + _j * 24),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.55, _c, 1)
-            if self.recording:
-                cv2.circle(frame, (w - 40, 35), 12, (0, 0, 255), -1)
-                cv2.putText(frame, "REC", (w - 110, 45),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                try:
-                    self.writer.write(cv2.resize(frame, (640, 480)))
-                except Exception:
-                    pass
 
-            img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).resize((640, 480))
-            self.video_lbl.configure(image=ctk.CTkImage(light_image=img, size=(640, 480)), text="")
-            self.line.set_data(range(len(self.graph_hist)), list(self.graph_hist))
-            self.ax.set_xlim(0, max(GRAPH_LEN, len(self.graph_hist)))
-            self.canvas.draw_idle()
+        ear_txt = "EAR: --" if avg_ear is None else f"EAR: {avg_ear:.2f}"
+        mar_txt = "MAR: --" if mar is None else f"MAR: {mar:.2f}"
+        self.ear_lbl.configure(text=f"{ear_txt}  {mar_txt}")
+        self.count_lbl.configure(
+            text=f"Drowsy: {self.drowsy_count} | "
+                 f"Yawns(90s): {len([t for t in self.yawns if time.time() - t < 90])}")
 
-        if time.time() - self.last_autosave >= 60:  # autosave every minute
+        if attention is None:
+            self.att_lbl.configure(text="Attention: --", text_color="gray")
+            self.att_bar.set(0)
+        else:
+            self.att_lbl.configure(text=f"Attention: {attention:.0f}% ({att_text})",
+                                   text_color=att_color)
+            self.att_bar.set(attention / 100.0)
+            try:
+                self.att_bar.configure(progress_color=att_color)
+            except Exception:
+                pass
+
+        # --------------------------------------------------- frame drawing --
+        if lm is not None:
+            for i in config.LEFT_EYE + config.RIGHT_EYE:
+                cv2.circle(frame, (int(lm[i][0]), int(lm[i][1])), 2, (255, 0, 0), -1)
+
+        extra = ""
+        if head_down and face_present:
+            extra += "HEAD DOWN "
+        if yawning_now:
+            extra += "YAWNING..."
+        if extra:
+            cv2.putText(frame, extra.strip(), (20, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, config.BGR_RED, 2)
+
+        if face_present:
+            if perclos is None:
+                eyes_state = "--"
+            elif perclos >= config.PERCLOS_HIGH:
+                eyes_state = "Closed"
+            elif perclos > config.PERCLOS_LOW:
+                eyes_state = "Closing"
+            else:
+                eyes_state = "Open"
+            hp_state = "Down" if head_down else "Normal"
+            for _j, (_txt, _c) in enumerate([
+                (f"Eyes: {eyes_state}", config.BGR_WHITE),
+                (f"Head Pose: {hp_state}", config.BGR_WHITE),
+                (f"Attention: {att_text}", config.ATT_COLORS.get(att_color, config.BGR_WHITE)),
+            ]):
+                cv2.putText(frame, _txt, (max(10, w - 230), 24 + _j * 24),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, _c, 1)
+
+        if self.recording:
+            cv2.circle(frame, (w - 40, 35), 12, config.BGR_RED, -1)
+            cv2.putText(frame, "REC", (w - 110, 45),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, config.BGR_RED, 2)
+            try:
+                self.writer.write(cv2.resize(frame, (config.FRAME_WIDTH, config.FRAME_HEIGHT)))
+            except Exception:
+                pass
+
+        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).resize(
+            (config.FRAME_WIDTH, config.FRAME_HEIGHT))
+        self.video_lbl.configure(image=ctk.CTkImage(light_image=img,
+                                                    size=(config.FRAME_WIDTH, config.FRAME_HEIGHT)),
+                                 text="")
+
+        self.graph_hist.append(float("nan") if perclos is None else perclos)
+        self.line.set_data(range(len(self.graph_hist)), list(self.graph_hist))
+        self.ax.set_xlim(0, max(config.GRAPH_LEN, len(self.graph_hist)))
+        self.canvas.draw_idle()
+
+        # ------------------------------------------------------ measurement --
+        try:
+            self.meas_log.log(
+                timestamp=now, state=state, level=stable_level,
+                perclos=perclos, ear=avg_ear, mar=mar, attention=attention,
+                head_down=head_down, distracted=distracted, yawning=yawning_now,
+                face_present=face_present, coverage=self.perclos_meter.coverage,
+            )
+        except Exception:
+            pass
+
+        if time.time() - self.last_autosave >= config.AUTOSAVE_SEC:  # autosave every minute
             self.last_autosave = time.time()
             if self._save_report():
                 self.add_log("Session autosaved.")

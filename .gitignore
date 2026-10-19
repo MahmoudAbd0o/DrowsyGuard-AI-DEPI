@@ -10,5 +10,6 @@ datasets/
 *.avi
 demo_session.avi
 session_report.csv
-
-session_report.csv
+outputs/
+*.pt
+!bump_model.pt

@@ -5,3 +5,7 @@ pyserial==3.5
 customtkinter==6.0.0
 matplotlib==3.8.4
 pillow==10.4.0
+
+# Data science / evaluation (Track 3)
+pandas==2.3.3
+scikit-learn==1.7.2

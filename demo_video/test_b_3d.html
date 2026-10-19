@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>DrowsyGuard AI - 3D sample (approach B)</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0f1e; }
+  canvas { display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none;
+         font-family: "Segoe UI", Arial, sans-serif; color: #fff; }
+  #title { position: absolute; top: 26px; width: 100%; text-align: center;
+           font-size: 44px; font-weight: 700; letter-spacing: 1px;
+           text-shadow: 0 0 18px rgba(56,189,248,.65); }
+  #sub { position: absolute; top: 82px; width: 100%; text-align: center;
+         font-size: 18px; color: #7dd3fc; }
+  #tag { position: absolute; left: 20px; bottom: 16px; font-size: 14px;
+         color: #94a3b8; }
+  #note { position: absolute; right: 20px; bottom: 16px; font-size: 14px;
+          color: #94a3b8; }
+  #warn { position: absolute; left: 0; right: 0; top: 130px; text-align: center;
+          font-size: 26px; font-weight: 700; color: #ef4444; opacity: 0;
+          text-shadow: 0 0 16px rgba(239,68,68,.8); }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="title">DrowsyGuard AI</div>
+  <div id="sub">Sample: 3D explainer (approach B)</div>
+  <div id="warn">DROWSY ALERT</div>
+  <div id="tag">Sample render (approach B)</div>
+  <div id="note">Three.js in browser</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const BG = 0x0a0f1e;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(BG);
+scene.fog = new THREE.Fog(BG, 40, 120);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(0, 7, 22);
+camera.lookAt(0, 2, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0x9fd8ff, 0x0b1020, 0.9));
+const key = new THREE.DirectionalLight(0xffffff, 1.1);
+key.position.set(10, 24, 14);
+key.castShadow = true;
+scene.add(key);
+const rim = new THREE.PointLight(0x38bdf8, 1.4, 90);
+rim.position.set(-8, 8, -10);
+scene.add(rim);
+
+// ---- road ----
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x2b3245, roughness: 0.95 });
+const road = new THREE.Mesh(new THREE.BoxGeometry(15, 0.4, 220), roadMat);
+road.position.set(0, -0.2, -60);
+road.receiveShadow = true;
+scene.add(road);
+
+// dashed lane line
+const dashMat = new THREE.MeshStandardMaterial({
+  color: 0xe8eefc, emissive: 0x9fb3d1, emissiveIntensity: 0.35, roughness: 0.6 });
+const dashes = [];
+for (let i = 0; i < 26; i++) {
+  const d = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 3.4), dashMat);
+  d.position.set(0, 0.06, -i * 8);
+  scene.add(d);
+  dashes.push(d);
+}
+
+// side poles for a sense of speed
+const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.7 });
+for (let i = 0; i < 22; i++) {
+  for (const x of [-8.6, 8.6]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.4, 5, 0.4), poleMat);
+    p.position.set(x, 2.5, -i * 12);
+    p.castShadow = true;
+    scene.add(p);
+  }
+}
+
+// ---- the car ----
+const car = new THREE.Group();
+const bodyMat = new THREE.MeshStandardMaterial({
+  color: 0x38bdf8, metalness: 0.45, roughness: 0.35 });
+const body = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 8), bodyMat);
+body.position.y = 1.1;
+body.castShadow = true;
+car.add(body);
+const cabinMat = new THREE.MeshStandardMaterial({
+  color: 0x0ea5e9, metalness: 0.5, roughness: 0.25 });
+const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.25, 4), cabinMat);
+cabin.position.set(0, 2.45, -0.3);
+cabin.castShadow = true;
+car.add(cabin);
+const glassMat = new THREE.MeshStandardMaterial({
+  color: 0xcbf3ff, metalness: 0.9, roughness: 0.05 });
+const glass = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.9, 0.15), glassMat);
+glass.position.set(0, 2.5, 1.75);
+car.add(glass);
+const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+for (const wx of [-2.05, 2.05]) {
+  for (const wz of [-2.6, 2.6]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.55, 20), wheelMat);
+    w.rotation.z = Math.PI / 2;
+    w.position.set(wx, 0.75, wz);
+    w.castShadow = true;
+    car.add(w);
+  }
+}
+car.position.set(0, 0, 6);
+scene.add(car);
+
+const warnEl = document.getElementById("warn");
+
+let t0 = performance.now();
+function animate() {
+  const t = (performance.now() - t0) / 1000;
+  const speed = 22;
+
+  // scroll the world towards the camera to fake driving
+  dashes.forEach(d => {
+    d.position.z = ((d.position.z + speed * 0.016) + 120) % 208 - 104;
+  });
+  scene.children.forEach(o => {
+    if (o.geometry && o.geometry.type === "BoxGeometry" &&
+        Math.abs(o.position.x) > 8 && o !== road) {
+      o.position.z = ((o.position.z + speed * 0.016) + 132) % 264 - 132;
+    }
+  });
+
+  // gentle camera sway + car bob
+  camera.position.x = Math.sin(t * 0.7) * 1.6;
+  camera.position.y = 7 + Math.sin(t * 1.3) * 0.25;
+  camera.lookAt(0, 2.2, -6);
+  car.position.y = Math.sin(t * 6) * 0.04;
+
+  // blink the alert every 2 seconds
+  warnEl.style.opacity = (Math.sin(t * 3.0) > 0.2) ? 1 : 0;
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

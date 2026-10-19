@@ -4,7 +4,7 @@ Driver Drowsiness Detection - Phase 0 (no hardware needed)
 - Eye closure % (PERCLOS) via EAR
 - Head-down detection (nose vs eye line)
 - Risk HIGH/LOW + on-screen alert
-- Optional serial to Arduino: sends 'D1' drowsy / 'D0' alert / 'N' no-face
+- Optional serial to Arduino: sends '2' drowsy / '0' alert / 'N' no-face
 
 Run:
   C:\\Users\\EL-Mostwred\\anaconda3\\envs\\drowsiness\\python.exe drowsiness_phase0.py
@@ -152,7 +152,7 @@ def main():
                 if not res.multi_face_landmarks:
                     ser.write(b"N")
                 elif status.startswith("DROWSY"):
-                    ser.write(b"1")
+                    ser.write(b"2")   # firmware: '2' = DROWSY (max danger)
                 else:
                     ser.write(b"0")
             except Exception as e:
