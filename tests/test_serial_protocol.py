@@ -35,6 +35,14 @@ class TestProtocol(unittest.TestCase):
 
 
 class TestLevelDebouncer(unittest.TestCase):
+    def test_default_frames_come_from_config(self):
+        # Regression: protocol.py used config without importing it, so the
+        # dashboard crashed on start instead of using the default.
+        import config
+
+        self.assertEqual(protocol.LevelDebouncer().frames,
+                         int(config.LEVEL_DEBOUNCE_FRAMES))
+
     def test_requires_hold_frames(self):
         deb = protocol.LevelDebouncer(frames=3)
         self.assertEqual(deb.update("2"), "0")

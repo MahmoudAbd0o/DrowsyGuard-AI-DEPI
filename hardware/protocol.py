@@ -13,6 +13,7 @@ so the mapping can never drift between the dashboard and the firmware.
 """
 from __future__ import annotations
 
+import config
 from ai.drowsiness import (ALERT, CAMERA_ERROR, DISTRACTED, DROWSY,
                            LOW_RISK, UNKNOWN, level_for_state)
 
