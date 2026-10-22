@@ -1,0 +1,15 @@
+{
+  "model": "YOLOv8n",
+  "dataset": "Urban Road Hazard Dataset (YOLO format) - speed-bump class",
+  "image_size": 640,
+  "epochs": 50,
+  "val_images": 277,
+  "val_instances": 305,
+  "precision": 0.9867,
+  "recall": 0.9738,
+  "map50": 0.9935,
+  "map50_95": 0.7158,
+  "weights_size_mb": 6.35,
+  "trained_on": "Kaggle GPU T4 x2",
+  "notes": "Final validation row from the training run; weights stored as bump_model.pt."
+}

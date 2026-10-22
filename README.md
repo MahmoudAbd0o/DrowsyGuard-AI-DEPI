@@ -31,7 +31,8 @@ DrowsyGuard-AI-DEPI-main/
 ├── dashboard.py             # CustomTkinter app (live video + stats + graph)
 ├── vision/
 │   ├── camera.py            # capture, warm-up, auto-reconnect
-│   └── face_detector.py     # MediaPipe Face Mesh + driver selection
+│   ├── face_detector.py     # MediaPipe Face Mesh + driver selection
+│   └── road_scene.py        # traffic light + speed-bump detection (YOLO)
 ├── ai/
 │   ├── features.py          # EAR / MAR / head pose (pure functions)
 │   ├── perclos.py           # timestamp-based PERCLOS + coverage
@@ -42,7 +43,12 @@ DrowsyGuard-AI-DEPI-main/
 ├── data/
 │   ├── logger.py            # session measurements + event log
 │   └── evaluate.py          # precision / recall / F1 / FPR / latency
-├── tests/                   # 68 unit tests (unittest)
+├── tools/
+│   ├── prepare_bump_dataset.py  # filter bump class + split + data.yaml
+│   ├── simulate_session.py      # scripted session log for the report
+│   └── make_report.py           # charts + report/report.md
+├── report/                  # generated figures + Evaluation Report
+├── tests/                   # 99 unit tests (unittest)
 ├── outputs/                 # generated logs & reports (gitignored)
 ├── arduino_bridge/arduino_bridge.ino
 ├── drowsiness_phase0.py
@@ -76,7 +82,8 @@ means the driver is safe.
 python -m unittest discover -s tests -t . -v
 ```
 Covers: features, PERCLOS + missing data, decision logic, serial protocol,
-driver selection, logging and evaluation metrics.
+driver selection, road-scene detection, logging, evaluation metrics and
+report helpers.
 
 ## Evaluation (Track 3)
 ```python
@@ -89,14 +96,19 @@ print(metrics)   # precision, recall, f1, false_positive_rate, accuracy
 each event onset and its first correct detection.
 
 ## Speed-bump model (`bump_model.pt`)
-`yolo_phase2.py` detects speed bumps **only if** `bump_model.pt` sits next to it.
-The weights are binary and not committed to git — build them once:
+`bump_model.pt` (6.35 MB, YOLOv8n) is committed to the repo and loaded by
+`vision/road_scene.py`; `yolo_phase2.py` runs it live next to the traffic-light
+model. Validation on 277 images / 305 instances: **P 98.7%, R 97.4%,
+mAP@50 99.4%, mAP@50-95 71.6%**.
+
+To retrain it:
 
 **Option A — Kaggle (free GPU, recommended)**
 1. Open the [Urban Road Hazard dataset](https://www.kaggle.com/datasets/shuaifanpi/urban-road-hazard-datasetyolo-format) → **New Notebook**
 2. Settings → Accelerator `GPU T4` · Internet `On`
-3. Upload `notebooks/train_bump_kaggle.ipynb` → **Run All** (~45 min)
-4. Download `bump_model.zip` from the Output panel → extract `bump_model.pt` next to `yolo_phase2.py`
+3. `File → Import Notebook → Link` with
+   `https://raw.githubusercontent.com/MahmoudAbd0o/DrowsyGuard-AI-DEPI/main/notebooks/train_bump_kaggle.ipynb`
+4. **Run All** (~45 min) → download `bump_model.zip` → extract `bump_model.pt`
 
 **Option B — local**
 ```bash
@@ -105,14 +117,28 @@ python train_bump.py --data datasets/bump/data.yaml --epochs 50 --batch 8
 ```
 Local GPU training needs a CUDA build of PyTorch (`pip install torch --index-url https://download.pytorch.org/whl/cu121`).
 
+## Evaluation report
+`tools/make_report.py` writes `report/report.md` plus charts
+(`report/figures/`): training metrics, PERCLOS/EAR timeline, state
+distribution, and - when test images are supplied - bump precision/recall.
+```bash
+python tools/simulate_session.py       # controlled session log (scripted input,
+                                       # real PerclosMeter + DecisionEngine)
+python tools/make_report.py            # rebuild report/report.md
+
+# optional: field test the bump model on your own images (+ YOLO labels)
+python tools/make_report.py --images data/bump_test/images --labels data/bump_test/labels
+```
+
 ## Files
 | File | Purpose |
 |------|---------|
 | `dashboard.py` | Live app: video, states, EAR/MAR/PERCLOS, attention, graph, log |
 | `drowsiness_phase0.py` | Face box, EAR/PERCLOS %, head-down, HIGH/LOW, Stay Alert |
 | `drowsiness_phase1.py` | + yawning (MAR) + distraction (head-turn) |
-| `yolo_phase2.py` | YOLO traffic light + optional speed-bump model |
+| `yolo_phase2.py` | YOLO traffic light + speed-bump model (logic in `vision/road_scene.py`) |
 | `test_camera.py` | Camera sanity check |
+| `tools/make_report.py` | Evaluation charts + `report/report.md` |
 | `arduino_bridge/arduino_bridge.ino` | Buzzer/LED/motor + ultrasonic auto-brake |
 | `TESTING.md` | 13 team test cases + bug template |
 | `PROJECT_PLAN.md` | Roadmap + pro shopping list (~1300 EGP) |
@@ -124,10 +150,11 @@ See `TESTING.md`: 13 cases (eyes, yawn x2, look-away, no-face, 2 people, glasses
 - [x] Phase 0: face + eye % + risk + alert
 - [x] Phase 1: yawning + distraction
 - [x] Dashboard (live % + graph + status + graduated alarm)
-- [x] Modular architecture + 68 automated tests
+- [x] Modular architecture + 99 automated tests
 - [ ] Arduino hardware test (buzzer/LED/brake)
-- [ ] YOLO: traffic light + speed bump
-- [ ] Telegram alert + final evaluation report + demo video
+- [x] YOLO: traffic light + speed bump (`bump_model.pt`, mAP@50 99.4%)
+- [x] Evaluation report (`report/report.md`)
+- [ ] Telegram alert + demo video
 
 ## Demo
 _(Coming soon: screenshot/GIF of live detection + demo video link)_
