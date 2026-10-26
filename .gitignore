@@ -13,3 +13,6 @@ session_report.csv
 outputs/
 *.pt
 !bump_model.pt
+demo_video/stock/
+demo_video/sample_frames/
+demo_video/*.wav
