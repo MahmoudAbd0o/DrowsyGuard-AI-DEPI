@@ -1,0 +1,834 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>DrowsyGuard AI — ملف التقييم</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    color: #12161C; font-size: 10.4pt; line-height: 1.65;
+    background: #fff;
+  }
+  .page {
+    width: 210mm; height: 297mm; padding: 15mm 16mm 14mm 16mm;
+    page-break-after: always; position: relative; overflow: hidden; background: #fff;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ---------- header / footer ---------- */
+  .ph { display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1.2pt solid #E4E7EB; padding-bottom: 2.5mm; margin-bottom: 5mm; }
+  .ph b { color: #D32F2F; font-size: 9pt; letter-spacing: .2pt; }
+  .ph span { color: #8A939E; font-size: 8.5pt; }
+  .pf { position: absolute; bottom: 7mm; right: 16mm; left: 16mm;
+        display: flex; justify-content: space-between; color: #9AA3AE; font-size: 8pt;
+        border-top: .8pt solid #EDEFF2; padding-top: 2mm; }
+
+  /* ---------- headings ---------- */
+  h2 { font-size: 19pt; margin: 0 0 1.5mm 0; color: #12161C; letter-spacing: -.2pt; }
+  h2 .num { color: #D32F2F; }
+  .sub { color: #5C6672; font-size: 10pt; margin: 0 0 5mm 0; }
+  h3 { font-size: 11.6pt; margin: 5mm 0 1.6mm 0; color: #12161C; }
+  h3 .dot { display: inline-block; width: 3.2mm; height: 3.2mm; background: #D32F2F;
+            border-radius: 50%; margin-left: 2mm; vertical-align: middle; }
+  p { margin: 0 0 2.4mm 0; }
+  .lead { font-size: 11pt; color: #2B323B; }
+  .muted { color: #5C6672; }
+  .small { font-size: 9pt; }
+
+  /* ---------- cards ---------- */
+  .card { background: #F6F7F9; border: .8pt solid #E7EAEE; border-radius: 3mm;
+          padding: 4mm 4.5mm; margin-bottom: 3mm; }
+  .card h4 { margin: 0 0 1.2mm 0; font-size: 10.8pt; color: #12161C; }
+  .card p { margin: 0; color: #4A535E; font-size: 9.6pt; }
+  .card .path { font-family: Consolas, monospace; direction: ltr; display: inline-block;
+                color: #D32F2F; font-size: 8.6pt; background: #fff; border: .6pt solid #EAD5D5;
+                border-radius: 1.5mm; padding: .4mm 1.6mm; margin-bottom: 1.4mm; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm 0; font-size: 9.2pt; }
+  th { background: #12161C; color: #fff; font-weight: 600; text-align: right;
+       padding: 2.2mm 2.4mm; font-size: 9pt; }
+  td { border-bottom: .7pt solid #E7EAEE; padding: 2.1mm 2.4mm; vertical-align: top; }
+  tr:nth-child(even) td { background: #FAFBFC; }
+  td.mono, th.mono { font-family: Consolas, monospace; direction: ltr; text-align: left; }
+
+  /* ---------- pills ---------- */
+  .pill { display: inline-block; padding: .6mm 2.2mm; border-radius: 10mm;
+          font-size: 8.2pt; font-weight: 600; white-space: nowrap; }
+  .ok { background: #E7F7EE; color: #177A46; }
+  .wip { background: #FFF4E0; color: #9A6410; }
+  .todo { background: #FDECEC; color: #A62828; }
+
+  /* ---------- stats ---------- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.5mm; margin: 3mm 0 4mm 0; }
+  .stat { border: .8pt solid #E7EAEE; border-radius: 3mm; padding: 3mm 2.5mm; text-align: center; background: #fff; }
+  .stat .v { font-size: 20pt; font-weight: 700; color: #D32F2F; line-height: 1.1; }
+  .stat .l { font-size: 8.4pt; color: #5C6672; margin-top: .8mm; }
+
+  /* ---------- tree ---------- */
+  pre.tree { direction: ltr; text-align: left; font-family: Consolas, "Courier New", monospace;
+             font-size: 8.7pt; line-height: 1.5; background: #0E1218; color: #DDE3EA;
+             border-radius: 3mm; padding: 4.5mm 5mm; margin: 2mm 0 3mm 0; white-space: pre; }
+  pre.tree .c { color: #7F8B99; }
+  pre.tree .r { color: #FF6B6B; }
+  pre.tree .g { color: #6DD9A0; }
+
+  /* ---------- flow ---------- */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .fbox { border: .9pt solid #DDE2E8; border-radius: 2.5mm; padding: 2.6mm 4mm; background: #fff;
+          display: flex; align-items: center; gap: 3mm; }
+  .fbox .n { width: 6.5mm; height: 6.5mm; border-radius: 50%; background: #D32F2F; color: #fff;
+             font-size: 8.6pt; font-weight: 700; display: flex; align-items: center;
+             justify-content: center; flex: 0 0 auto; }
+  .fbox .t { font-size: 9.6pt; }
+  .fbox .t b { font-size: 10pt; }
+  .fbox.alt { background: #F6F7F9; }
+  .arrow { text-align: center; color: #C6CDD5; font-size: 11pt; line-height: 1; margin: 1mm 0; }
+
+  /* ---------- cover ---------- */
+  .cover { background: #0E1218; color: #fff; padding: 0; }
+  .cover .band { background: #D32F2F; padding: 10mm 16mm; display: flex; justify-content: space-between;
+                 align-items: center; font-size: 9.5pt; letter-spacing: .4pt; }
+  .cover .inner { padding: 16mm; display: flex; gap: 12mm; }
+  .cover .txt { flex: 1; padding-top: 14mm; }
+  .cover h1 { font-size: 31pt; margin: 0; letter-spacing: -.8pt; line-height: 1.05; white-space: nowrap; }
+  .cover h1 span { color: #D32F2F; }
+  .cover .tag { font-size: 14pt; color: #C3CBD5; margin-top: 5mm; line-height: 1.6; }
+  .cover .meta { margin-top: 16mm; font-size: 9.4pt; color: #8C97A4; line-height: 2; }
+  .cover .shot { width: 54mm; flex: 0 0 auto; }
+  .cover .shot img { width: 100%; border-radius: 4mm; border: 1.5pt solid #2A313B; }
+  .cover .cap { font-size: 7.6pt; color: #6F7A87; text-align: center; margin-top: 2mm; }
+  .cover .strip { position: absolute; bottom: 0; left: 0; right: 0; padding: 6mm 16mm;
+                  border-top: .8pt solid #232A34; display: flex; justify-content: space-between;
+                  font-size: 8.6pt; color: #7C8794; }
+
+  .toc { position: absolute; bottom: 20mm; right: 16mm; left: 16mm;
+         border-top: .8pt solid #232A34; padding-top: 4mm; }
+  .toc-h { font-size: 8.4pt; color: #6F7A87; letter-spacing: 1pt; margin-bottom: 2.5mm; }
+  .toc-g { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 10mm; }
+  .toc-i { font-size: 8.6pt; color: #A9B3BF; display: flex; gap: 2.4mm; }
+  .toc-i b { color: #D32F2F; font-weight: 700; }
+
+  .chips { display: flex; gap: 3mm; margin-top: 8mm; flex-wrap: wrap; }
+  .chip { border: .8pt solid #2C343F; border-radius: 2mm; padding: 2.4mm 3.4mm; font-size: 8.6pt; color: #C3CBD5; }
+  .chip b { color: #fff; }
+
+  .imgwrap { border: .8pt solid #E7EAEE; border-radius: 3mm; padding: 2mm; background: #fff; }
+  .imgwrap img { width: 100%; display: block; border-radius: 1.5mm; }
+  .caption { font-size: 8.2pt; color: #7A8491; text-align: center; margin-top: 1.6mm; }
+
+  .bar { height: 3.6mm; background: #EDEFF2; border-radius: 2mm; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: #D32F2F; border-radius: 2mm; }
+  .brow { margin-bottom: 3mm; }
+  .brow .lbl { display: flex; justify-content: space-between; font-size: 9pt; color: #4A535E; margin-bottom: 1mm; }
+  .brow .lbl b { color: #12161C; }
+
+  .imgwrap img.contain { max-height: 78mm; width: auto; max-width: 100%; margin: 0 auto; }
+  .imgwrap img.pie { max-height: 52mm; width: auto; max-width: 100%; margin: 0 auto; }
+
+  .callout { border-right: 3.5pt solid #D32F2F; background: #FDF3F3; padding: 3mm 4mm;
+             border-radius: 0 2.5mm 2.5mm 0; font-size: 9.6pt; color: #4A2A2A; margin: 3mm 0; }
+  .callout b { color: #A62828; }
+
+  ul { margin: 0 0 2.5mm 0; padding-right: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .qa { margin-bottom: 2.6mm; }
+  .qa .q { font-weight: 700; color: #12161C; }
+  .qa .a { color: #4A535E; }
+  .tagline { font-size: 8.4pt; color: #8A939E; margin-top: 2mm; }
+  .two { display: grid; grid-template-columns: 1.15fr .85fr; gap: 5mm; align-items: start; }
+</style>
+</head>
+<body>
+
+<!-- ================= 1. COVER ================= -->
+<section class="page cover">
+  <div class="band">
+    <div>مشروع تخرج — DEPI</div>
+    <div>ملف التقييم · أكتوبر 2026</div>
+  </div>
+
+  <div class="inner">
+    <div class="txt">
+      <h1>DrowsyGuard <span>AI</span></h1>
+      <div class="tag">نظام ذكي يراقب السائق لحظة بلحظة،<br>ويكشف النعاس والمطبات وإشارة المرور الحمراء.</div>
+      <div class="chips">
+        <div class="chip"><b>98.7%</b> دقة كشف المطبات</div>
+        <div class="chip"><b>99</b> اختبار ناجح</div>
+        <div class="chip"><b>5</b> حالات للسائق</div>
+      </div>
+      <div class="meta">
+        إعداد: محمود عبده<br>
+        GitHub: MahmoudAbd0o / DrowsyGuard-AI-DEPI
+      </div>
+    </div>
+    <div class="shot">
+      <img src="hero_alert.png" alt="HUD">
+      <div class="cap">لقطة من الهوية البصرية للمشروع</div>
+    </div>
+  </div>
+
+  <div class="toc">
+    <div class="toc-h">المحتوى</div>
+    <div class="toc-g">
+      <div class="toc-i"><b>01</b> المشروع في صفحة واحدة</div>
+      <div class="toc-i"><b>02</b> إحنا وصلنا لفين؟</div>
+      <div class="toc-i"><b>03</b> التقسيمة اللي عملناها</div>
+      <div class="toc-i"><b>04</b> مجلد ai — الدماغ</div>
+      <div class="toc-i"><b>05</b> مجلد vision — العين</div>
+      <div class="toc-i"><b>06</b> الهاردوير والتسجيل والأدوات</div>
+      <div class="toc-i"><b>07</b> سير البيانات</div>
+      <div class="toc-i"><b>08</b> جدول الملخص</div>
+      <div class="toc-i"><b>09</b> الأرقام والنتائج</div>
+      <div class="toc-i"><b>10</b> تقييم جلسة القيادة</div>
+      <div class="toc-i"><b>11</b> الناقص والخطة</div>
+      <div class="toc-i"><b>12</b> قاموس المصطلحات</div>
+      <div class="toc-i"><b>13</b> أسئلة متوقعة</div>
+      <div class="toc-i"><b>14</b> سكريبت العرض</div>
+    </div>
+  </div>
+
+  <div class="strip">
+    <div>Python · MediaPipe · YOLOv8 · OpenCV · Arduino</div>
+    <div>2026</div>
+  </div>
+</section>
+
+<!-- ================= 2. المشروع في صفحة ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 02</span></div>
+
+  <h2>المشروع في صفحة واحدة</h2>
+  <p class="sub">المشكلة، الحل، والمخرجات — من غير تفاصيل تقنية.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>المشكلة</h4>
+      <p>
+        • <b>النعاس:</b> لحظة إغلاق العين لثانيتين كفاية لحادث.<br>
+        • <b>المطبات:</b> غير معلومة وغير موحّدة الشكل.<br>
+        • <b>الإشارة الحمراء:</b> السائق المشتّت يعدّيها بدون ما ياخد باله.
+      </p>
+    </div>
+    <div class="card">
+      <h4>الحل</h4>
+      <p>
+        • كاميرا واحدة + ذكاء اصطناعي بيقرأ الوش والعين.<br>
+        • موديل بيكشف المطبات على الطريق.<br>
+        • عدّاد للإشارة الحمراء + تنبيه فوري (صوت + ليد + اهتزاز).
+      </p>
+    </div>
+  </div>
+
+  <h3><span class="dot"></span>الفكرة في سطر واحد</h3>
+  <p class="lead">
+    نظام واحد بيجمع <b>رؤية حاسوبية</b> (قراءة السائق والطريق) مع <b>قرار فوري</b>
+    و<b>تنبيه مادي</b> عن طريق الأردوينو — عشان ينبّه قبل ما الحادث يحصل، مش بعده.
+  </p>
+
+  <h3><span class="dot"></span>مين بيعمل إيه؟</h3>
+  <table>
+    <tr><th style="width:26%">المكوّن</th><th>وظيفته</th><th style="width:22%">التقنية</th></tr>
+    <tr><td>مراقبة السائق</td><td>قياس فتح العين، التثاؤب، ميل الرأس، والالتفات</td><td>MediaPipe Face Mesh</td></tr>
+    <tr><td>قرار النعاس</td><td>تحويل القياسات لحالة واحدة واضحة كل لحظة</td><td>قواعد + PERCLOS</td></tr>
+    <tr><td>كشف المطبات</td><td>تحديد مكان المطب في الصورة قبل الوصول له</td><td>YOLOv8 (موديل مدرَّب)</td></tr>
+    <tr><td>إشارة المرور</td><td>تمييز الأحمر/الأخضر + عدّاد مدة الوقوف</td><td>YOLOv8 + تحليل لون</td></tr>
+    <tr><td>التنبيه</td><td>ليد + بازر + اهتزاز حسب خطورة الحالة</td><td>Arduino + Serial</td></tr>
+    <tr><td>التسجيل والتقييم</td><td>حفظ كل لحظة في CSV وحساب الدقة</td><td>Python + Pandas</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>المخرج النهائي:</b> تطبيق واحد (Dashboard) + موديل مدرَّب + تقرير تقييم بالأرقام + فيديو تعريفي.
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>02</span></div>
+</section>
+
+<!-- ================= 3. حالة المكوّنات ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 03</span></div>
+
+  <h2>إحنا وصلنا لفين؟</h2>
+  <p class="sub">حالة كل جزء بشكل صريح — إيه اللي خلص، وإيه اللي لسه.</p>
+
+  <table>
+    <tr><th style="width:30%">المكوّن</th><th style="width:16%">الحالة</th><th>الدليل / الملاحظات</th></tr>
+    <tr><td>كشف النعاس (العين + الرأس)</td><td><span class="pill ok">مكتمل</span></td><td>شغال لايف على الكاميرا + داشبورد مستقر</td></tr>
+    <tr><td>PERCLOS بالوقت</td><td><span class="pill ok">مكتمل</span></td><td>نافذة 2 ثانية + نسبة تغطية + اختبارات</td></tr>
+    <tr><td>محرك القرار (5 حالات)</td><td><span class="pill ok">مكتمل</span></td><td>ALERT / LOW RISK / DISTRACTED / DROWSY / UNKNOWN</td></tr>
+    <tr><td>موديل المطبات YOLOv8</td><td><span class="pill ok">مكتمل</span></td><td>mAP@50 = 99.4% على 277 صورة تحقق</td></tr>
+    <tr><td>كشف إشارة المرور + العدّاد</td><td><span class="pill ok">مكتمل</span></td><td>دوال منفصلة + اختبارات بدون كاميرا</td></tr>
+    <tr><td>بروتوكول الأردوينو</td><td><span class="pill ok">مكتمل</span></td><td>5 أوامر + منع اهتزاز الإنذار (Debounce)</td></tr>
+    <tr><td>التسجيل والتقييم</td><td><span class="pill ok">مكتمل</span></td><td>CSV لكل فريم + Precision / Recall / Latency</td></tr>
+    <tr><td>تقرير التقييم</td><td><span class="pill ok">مكتمل</span></td><td>report.md + 3 رسوم بيانية</td></tr>
+    <tr><td>الفيديو التعريفي</td><td><span class="pill ok">عينة جاهزة</span></td><td>10 ثواني بأسلوب الريفيرنس، والفيديو الكامل لاحقًا</td></tr>
+    <tr><td>تجميع الهاردوير النهائي</td><td><span class="pill wip">قيد التنفيذ</span></td><td>الكود جاهز — التجربة المجمّعة مع الزميل</td></tr>
+    <tr><td>اختبار المطبات ميدانيًا</td><td><span class="pill todo">متبقي</span></td><td>محتاج ~40 صورة حقيقية من الطريق</td></tr>
+    <tr><td>حساسات MPU6050 / MQ-3</td><td><span class="pill todo">متبقي</span></td><td>قرار الشراء والتركيب</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>الخلاصة:</b> كل السوفتوير مكتمل ومُختبَر (99 اختبار)، والناقص عمليّات تركيب وتجربة ميدانية.
+  </div>
+
+  <h3><span class="dot"></span>نسبة الإنجاز الحالية</h3>
+  <div class="brow">
+    <div class="lbl"><b>السوفتوير والذكاء الاصطناعي</b><span>100%</span></div>
+    <div class="bar"><i style="width:100%"></i></div>
+  </div>
+  <div class="brow">
+    <div class="lbl"><b>التوثيق والتقرير</b><span>90%</span></div>
+    <div class="bar"><i style="width:90%"></i></div>
+  </div>
+  <div class="brow">
+    <div class="lbl"><b>الهاردوير والتجميع</b><span>60%</span></div>
+    <div class="bar"><i style="width:60%"></i></div>
+  </div>
+  <div class="brow">
+    <div class="lbl"><b>الاختبار الميداني</b><span>30%</span></div>
+    <div class="bar"><i style="width:30%"></i></div>
+  </div>
+  <div class="brow">
+    <div class="lbl"><b>الفيديو التعريفي</b><span>50%</span></div>
+    <div class="bar"><i style="width:50%"></i></div>
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>03</span></div>
+</section>
+
+<!-- ================= 4. TREE ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 04</span></div>
+
+  <h2>التقسيمة اللي عملناها</h2>
+  <p class="sub">كل حاجة في مكانها: قرار واحد، رؤية واحدة، هاردوير واحد… عشان أي حد يلاقي حاجته بسرعة.</p>
+
+<pre class="tree">DrowsyGuard-AI-DEPI-main/
+│
+├── <span class="g">config.py</span>            <span class="c"># كل الأرقام والعتبات في مكان واحد</span>
+├── main.py                <span class="c"># نقطة التشغيل (سطر واحد)</span>
+├── dashboard.py           <span class="c"># الواجهة الرسومية</span>
+│
+├── <span class="r">ai/</span>                    <span class="c"># الدماغ: القياسات والقرار</span>
+│   ├── features.py        <span class="c"># EAR / MAR / ميل الرأس</span>
+│   ├── perclos.py         <span class="c"># نسبة إغلاق العين بالوقت</span>
+│   ├── drowsiness.py      <span class="c"># تحويل القياسات لحالة</span>
+│   └── attention.py       <span class="c"># مؤشر انتباه 0-100</span>
+│
+├── <span class="r">vision/</span>                <span class="c"># العين: الكاميرا والكشف</span>
+│   ├── camera.py          <span class="c"># كاميرا + إعادة اتصال</span>
+│   ├── face_detector.py   <span class="c"># MediaPipe + اختيار السواق</span>
+│   └── road_scene.py      <span class="c"># مطبات + إشارة مرور</span>
+│
+├── <span class="r">hardware/</span>              <span class="c"># الأوامر الخارجية</span>
+│   └── protocol.py        <span class="c"># 5 أوامر + Debounce</span>
+├── arduino_bridge/
+│   └── arduino_bridge.ino <span class="c"># كود الأردوينو</span>
+│
+├── <span class="r">data/</span>                  <span class="c"># التسجيل والتقييم</span>
+│   ├── logger.py          <span class="c"># CSV + سجل الأحداث</span>
+│   └── evaluate.py        <span class="c"># Precision / Recall / Latency</span>
+│
+├── <span class="r">tests/</span>                 <span class="c"># 9 ملفات — 99 اختبار</span>
+├── <span class="r">tools/</span>                 <span class="c"># محاكاة / تقرير / فيديو / داتاسيت</span>
+├── notebooks/             <span class="c"># تدريب الموديل على Kaggle</span>
+├── report/                <span class="c"># تقرير التقييم + الرسوم</span>
+└── demo_video/            <span class="c"># الفيديو التعريفي</span>
+</pre>
+
+  <h3><span class="dot"></span>ليه التقسيمة دي؟</h3>
+  <table>
+    <tr><th style="width:22%">المبدأ</th><th>الفايدة العملية</th></tr>
+    <tr><td>كل حاجة في مكانها</td><td>ملف واحد بيعمل حاجة واحدة، فالتعديل مبيخربش حاجة تانية</td></tr>
+    <tr><td>فصل الرؤية عن القرار</td><td>نقدر نختبر القرار بدون كاميرا، ونجرّب موديل جديد لوحده</td></tr>
+    <tr><td>أرقام في ملف واحد</td><td>تغيير حساسية النظام = تعديل رقم في <span class="small" dir="ltr">config.py</span> بس</td></tr>
+    <tr><td>اختبارات مستقلة</td><td>أي تعديل بيتم التأكد منه فورًا قبل التجربة على الجهاز</td></tr>
+  </table>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>04</span></div>
+</section>
+
+<!-- ================= 5. ai/ ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 05</span></div>
+
+  <h2><span class="num">1.</span> مجلد ai/ — الدماغ</h2>
+  <p class="sub">بياخد نقاط الوش ويحوّلها لأرقام… والأرقام تتحوّل لقرار.</p>
+
+  <div class="card">
+    <div class="path">ai/features.py</div>
+    <h4>قياس المؤشرات من نقاط الوش</h4>
+    <p>
+      بياخد 468 نقطة على الوش ويحسب منها: <b>EAR</b> (نسبة فتح العين)،
+      <b>MAR</b> (فتحة البق = تثاؤب)، <b>ميل الرأس</b> (النفس بينزل تحت خط العين)،
+      و<b>الالتفات</b> (بُعد الأنف عن منتصف الوش).
+      لو القياس غلط أو الوش مش واضح بيرجّع <b>None</b> — مش صفر — عشان النظام ميفتكرش إن العين مفتوحة.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="path">ai/perclos.py</div>
+    <h4>PERCLOS — أهم مقياس في المشروع</h4>
+    <p>
+      PERCLOS = نسبة الوقت اللي كانت العين مقفولة فيه خلال آخر <b>2 ثانية</b>.
+      الحساب <b>بالوقت الحقيقي</b> مش بعدد الفريمات، فلو الكاميرا بطّلت النتيجة تفضل صح.
+      وبيقول نسبة التغطية (Coverage): لو القياسات قليلة، الحالة تبقى <b>UNKNOWN</b> مش إنذار كاذب.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="path">ai/drowsiness.py</div>
+    <h4>محرك القرار — قواعد واضحة ومقصودة</h4>
+    <p>
+      <b>DROWSY</b> لو: PERCLOS ≥ 40% — أو الرأس نازل مع إغلاق عين — أو تثاؤبين في 90 ثانية.<br>
+      <b>DISTRACTED</b> لو الرأس ملفوف بعيد عن الطريق لمدة كافية.<br>
+      <b>LOW RISK</b> لو PERCLOS بين 15% و40% أو تثاؤب حالي.<br>
+      <b>ALERT</b> لو العين مفتوحة والرأس مستقيم. <b>UNKNOWN</b> لو الوش مش ظاهر.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="path">ai/attention.py</div>
+    <h4>مؤشر الانتباه 0–100</h4>
+    <p>
+      رقم واحد بسيط يعرض للسائق: بيبدأ من 100 وينقص مع إغلاق العين، والرأس النازل (−10)،
+      والالتفات (−15)، والتثاؤب (−8). وفيه سقوف: النعاس ≤ 35، الالتفات ≤ 55.
+    </p>
+  </div>
+
+  <div class="callout">
+    <b>قرار تصميمي مهم:</b> «الوش مش ظاهر» أو «القياس غلط» = UNKNOWN (بدون إنذار صوتي)،
+    مش ALERT. ده بيقلل الإنذارات الكاذبة اللي بتخلي السواق يفصل النظام.
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>05</span></div>
+</section>
+
+<!-- ================= 6. vision/ ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 06</span></div>
+
+  <h2><span class="num">2.</span> مجلد vision/ — العين</h2>
+  <p class="sub">الكاميرا، الوش، والطريق. كله معزول عن باقي النظام عشان يتختبر لوحده.</p>
+
+  <div class="card">
+    <div class="path">vision/camera.py</div>
+    <h4>الكاميرا + إعادة الاتصال التلقائي</h4>
+    <p>
+      بيفتح أول كاميرا شغالة، بيسخّنها (قراءة كام فريم)، ولو الكاميرا قطعت بيحاول يرجّعها لوحده
+      بدل ما البرنامج يقع. الـDashboard بيطلب «فريم» وهو مش مسؤول عن أي تفاصيل تقنية.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="path">vision/face_detector.py</div>
+    <h4>كشف الوش + اختيار السواق</h4>
+    <p>
+      بيستخدم <b>MediaPipe Face Mesh</b> ويرجّع نقاط الوش كأرقام عادية (Numpy) عشان باقي الكود
+      ما يعتمدش على مكتبة معينة. ولو فيه أكتر من وش، بيختار <b>السواق</b>: أكبر وش + أقرب لمكان
+      السواق (في مصر: ناحية اليمين في وضع المراية).
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="path">vision/road_scene.py</div>
+    <h4>الطريق: مطبات + إشارة مرور</h4>
+    <p>
+      • <b>TrafficLightDetector:</b> موديل YOLO جاهز بيعرف إشارات المرور، ولونه بيتحدد بدالة
+      <span dir="ltr">light_state()</span> (أحمر/أصفر/أخضر/غير معروف) من لون الجزء المضيء.<br>
+      • <b>BumpDetector:</b> موديل <span dir="ltr">bump_model.pt</span> مدرَّب عندنا على فئة واحدة: مطب.<br>
+      • <b>RedLightTimer:</b> بيحسب ثواني الاستمرار على الأحمر، ويصفّر العدّاد أول ما الإشارة تتغيّر.
+    </p>
+  </div>
+
+  <h3><span class="dot"></span>ليه المطبات محتاجة موديل خاص؟</h3>
+  <p>
+    لأن المطب مش «شيء» ثابت الشكل زي العربية أو الشخص. الموديل العام (COCO) مبيعرفوش خالص.
+    عشان كده عملنا داتاسيت من صور طرق حقيقية، ودرّبنا موديل مخصوص، وحوّلناه لفئة واحدة (0 = مطب)
+    عشان يبقى سريع ودقيق.
+  </p>
+
+  <table>
+    <tr><th>المرحلة</th><th>الأداة</th><th>المخرج</th></tr>
+    <tr><td>تجهيز الداتاسيت</td><td dir="ltr">tools/prepare_bump_dataset.py</td><td>صور + ليبلز + data.yaml</td></tr>
+    <tr><td>التدريب (GPU)</td><td>Kaggle + notebook</td><td dir="ltr">bump_model.pt</td></tr>
+    <tr><td>الاستخدام</td><td dir="ltr">yolo_phase2.py</td><td>بوكس على المطب في الفيديو</td></tr>
+  </table>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>06</span></div>
+</section>
+
+<!-- ================= 7. hardware + data + tools ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 07</span></div>
+
+  <h2><span class="num">3.</span> الهاردوير والتسجيل والأدوات</h2>
+  <p class="sub">إزاي القرار بيوصل للسواق، وإزاي بنحفظ ونقيّم كل لحظة.</p>
+
+  <h3><span class="dot"></span>hardware/protocol.py — لغة التفاهم مع الأردوينو</h3>
+  <table>
+    <tr><th style="width:14%">الأمر</th><th style="width:22%">الحالة</th><th>رد فعل الأردوينو</th></tr>
+    <tr><td class="mono">0</td><td>آمن</td><td>ليد أخضر — بدون صوت — الموتور شغال</td></tr>
+    <tr><td class="mono">1</td><td>خطر منخفض</td><td>ليد أصفر + بيب خفيف + اهتزاز 30%</td></tr>
+    <tr><td class="mono">2</td><td>نعاس (DROWSY)</td><td>ليد أحمر + إنذار عالي + اهتزاز 100% + إيقاف الموتور</td></tr>
+    <tr><td class="mono">3</td><td>التفات (DISTRACTED)</td><td>ليد أصفر وامض + بيب مزدوج + اهتزاز 60%</td></tr>
+    <tr><td class="mono">N</td><td>وش غير ظاهر</td><td>ليد أصفر وامض ببطء — بدون صوت</td></tr>
+  </table>
+  <p class="small muted">
+    <b>LevelDebouncer:</b> الحالة لازم تفضل ثابتة 5 فريمات قبل ما تتبعت، عشان الإنذار ميرفرفش
+    بين حالة وحالة في لمح البصر.
+  </p>
+
+  <h3><span class="dot"></span>data/ — تسجيل وتقييم</h3>
+  <div class="grid2">
+    <div class="card">
+      <div class="path">data/logger.py</div>
+      <p>بيسجّل كل فريم (القياسات + الحالة) في CSV بشكل مخزّن مؤقتًا، فالكتابة على القرص مبطّأش الفيديو. وفيه سجل أحداث مقروء للإنذارات.</p>
+    </div>
+    <div class="card">
+      <div class="path">data/evaluate.py</div>
+      <p>يحسب Precision / Recall / F1 / نسبة الإنذارات الكاذبة / التغطية / زمن الاكتشاف — على أي ملف مُعلَّم.</p>
+    </div>
+  </div>
+
+  <h3><span class="dot"></span>tools/ — الأدوات اللي بتولّد المخرجات</h3>
+  <table>
+    <tr><th style="width:34%">الأداة</th><th>بتعمل إيه</th></tr>
+    <tr><td dir="ltr">simulate_session.py</td><td>جلسة 95 ثانية مكتوبة، بتستخدم نفس المحرك الحقيقي عشان التقرير يبقى قابل للتكرار</td></tr>
+    <tr><td dir="ltr">make_report.py</td><td>يبني تقرير التقييم + الرسوم البيانية من نتائج الموديل والجلسة</td></tr>
+    <tr><td dir="ltr">prepare_bump_dataset.py</td><td>يفلتر داتاسيت ويحوّله لفئة واحدة (مطب) ويقسّمه تدريب/تحقق</td></tr>
+    <tr><td dir="ltr">make_video.py</td><td>الفيديو التعريفي 9:16 بأسلوب الريفيرنس</td></tr>
+  </table>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>07</span></div>
+</section>
+
+<!-- ================= 8. FLOW ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 08</span></div>
+
+  <h2>سير البيانات من الكاميرا للتنبيه</h2>
+  <p class="sub">إزاي الصورة بتتحوّل لحالة… والحالة بتتحوّل لإنذار.</p>
+
+  <h3><span class="dot"></span>المسار الأول: مراقبة السائق</h3>
+  <div class="flow">
+    <div class="fbox"><div class="n">1</div><div class="t"><b>كاميرا</b> — 640×480، مع إعادة اتصال تلقائي</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox"><div class="n">2</div><div class="t"><b>MediaPipe</b> — 468 نقطة على الوش (أرقام إحداثيات)</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox"><div class="n">3</div><div class="t"><b>ai/features</b> — EAR (العين) + MAR (التثاؤب) + ميل الرأس + الالتفات</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox"><div class="n">4</div><div class="t"><b>ai/perclos</b> — نسبة إغلاق العين خلال 2 ثانية + نسبة تغطية القياس</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox"><div class="n">5</div><div class="t"><b>ai/drowsiness</b> — القرار: ALERT / LOW RISK / DISTRACTED / DROWSY / UNKNOWN</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox"><div class="n">6</div><div class="t"><b>hardware/protocol</b> — أمر واحد + Debounce (5 فريمات)</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox alt"><div class="n">7</div><div class="t"><b>Arduino</b> — ليد + بازر + اهتزاز، والموتور بيقف في حالة النعاس</div></div>
+  </div>
+
+  <h3><span class="dot"></span>المسار الثاني: الطريق</h3>
+  <div class="flow">
+    <div class="fbox"><div class="n">1</div><div class="t"><b>كاميرا</b> — نفس الفريم</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox"><div class="n">2</div><div class="t"><b>YOLOv8</b> — موديل جاهز للإشارات + موديلنا الخاص للمطبات</div></div>
+    <div class="arrow">▼</div>
+    <div class="fbox alt"><div class="n">3</div><div class="t"><b>تنبيه</b> — بوكس على المطب، وحالة الإشارة + عدّاد الأحمر</div></div>
+  </div>
+
+  <div class="callout">
+    <b>ملاحظة صريحة للمناقشة:</b> المسارين شغالين ومُختبَرين كل واحد لوحده.
+    دمجهم في واجهة واحدة (شاشة تعرض السواق والطريق مع بعض) هو خطوة المرحلة الجاية.
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>08</span></div>
+</section>
+
+<!-- ================= 9. SUMMARY TABLE ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 09</span></div>
+
+  <h2>جدول الملخص</h2>
+  <p class="sub">لو حافظت الجدول ده، تبقى فاهم كل حاجة في المشروع.</p>
+
+  <table style="font-size:8.6pt">
+    <tr>
+      <th style="width:17%">الجزء</th>
+      <th style="width:22%">وظيفته</th>
+      <th style="width:41%">بيشتغل إزاي</th>
+      <th style="width:20%">الملف</th>
+    </tr>
+    <tr><td>الإعدادات</td><td>كل الأرقام في مكان واحد</td><td>عتبات العين والنعاس والالتفات والكاميرا والسيريال</td><td class="mono">config.py</td></tr>
+    <tr><td>الواجهة</td><td>شاشة المشروع</td><td>كاميرا لايف + الحالة + EAR/MAR + إنذارات + تسجيل</td><td class="mono">dashboard.py</td></tr>
+    <tr><td>قياسات الوش</td><td>تحويل النقاط لأرقام</td><td>EAR للعين، MAR للتثاؤب، نسب ميل الرأس والالتفات</td><td class="mono">ai/features.py</td></tr>
+    <tr><td>PERCLOS</td><td>نسبة إغلاق العين</td><td>نافذة زمنية 2 ثانية + تجاهل القياسات الغلط</td><td class="mono">ai/perclos.py</td></tr>
+    <tr><td>القرار</td><td>تحديد حالة السائق</td><td>قواعد ثابتة على PERCLOS + الرأس + التثاؤب</td><td class="mono">ai/drowsiness.py</td></tr>
+    <tr><td>الانتباه</td><td>رقم 0–100 للسائق</td><td>100 ناقص خصومات حسب كل مؤشر</td><td class="mono">ai/attention.py</td></tr>
+    <tr><td>الكاميرا</td><td>تغذية الصورة</td><td>فتح + تسخين + إعادة اتصال عند القطع</td><td class="mono">vision/camera.py</td></tr>
+    <tr><td>كشف الوش</td><td>تحديد السواق</td><td>MediaPipe + اختيار أكبر وش قريب من مكان السواق</td><td class="mono">vision/face_detector.py</td></tr>
+    <tr><td>الطريق</td><td>مطبات وإشارة مرور</td><td>YOLO للمطبات + YOLO للإشارات + تحليل اللون والعدّاد</td><td class="mono">vision/road_scene.py</td></tr>
+    <tr><td>الأوامر</td><td>التحكم في الهاردوير</td><td>5 أوامر (0/1/2/3/N) + تثبيت الحالة 5 فريمات</td><td class="mono">hardware/protocol.py</td></tr>
+    <tr><td>الأردوينو</td><td>التنبيه المادي</td><td>ليد + بازر + اهتزاز + إيقاف الموتور عند النعاس</td><td class="mono">arduino_bridge.ino</td></tr>
+    <tr><td>التسجيل</td><td>حفظ الجلسة</td><td>CSV لكل فريم (مخزّن) + سجل أحداث</td><td class="mono">data/logger.py</td></tr>
+    <tr><td>التقييم</td><td>قياس دقة النظام</td><td>Precision / Recall / F1 / إنذارات كاذبة / زمن اكتشاف</td><td class="mono">data/evaluate.py</td></tr>
+    <tr><td>الأدوات</td><td>توليد المخرجات</td><td>محاكاة جلسة + تقرير + فيديو + داتاسيت</td><td class="mono">tools/</td></tr>
+    <tr><td>الاختبارات</td><td>حماية الكود</td><td>99 اختبار على القرار والقياسات والبروتوكول والتقرير</td><td class="mono">tests/</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>إزاي تستخدم الجدول في المناقشة:</b> ابدأ بالجزء، قول وظيفته، بعدين جملة واحدة عن طريقة عمله،
+    واقفل باسم الملف. كده كل إجابة تبقى 15 ثانية ومنظمة.
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>09</span></div>
+</section>
+
+<!-- ================= 10. RESULTS ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 10</span></div>
+
+  <h2>الأرقام والنتائج</h2>
+  <p class="sub">كل رقم هنا له مصدر قابل لإعادة التشغيل.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="v">98.7%</div><div class="l">Precision</div></div>
+    <div class="stat"><div class="v">97.4%</div><div class="l">Recall</div></div>
+    <div class="stat"><div class="v">99.4%</div><div class="l">mAP@50</div></div>
+    <div class="stat"><div class="v">71.6%</div><div class="l">mAP@50-95</div></div>
+  </div>
+
+  <h3><span class="dot"></span>موديل كشف المطبات</h3>
+  <table>
+    <tr><th>البند</th><th>القيمة</th></tr>
+    <tr><td>الموديل الأساسي</td><td>YOLOv8n — صورة 640 — 50 Epoch</td></tr>
+    <tr><td>بيانات التحقق</td><td>277 صورة / 305 حالة مطب</td></tr>
+    <tr><td>الفئة</td><td>فئة واحدة: speedbump</td></tr>
+    <tr><td>حجم الموديل</td><td>6.35 MB (سريع على CPU)</td></tr>
+  </table>
+
+  <div class="imgwrap">
+    <img src="training_metrics.png" alt="Training metrics">
+    <div class="caption">منحنيات التدريب — التحقق من عدم الـOverfitting</div>
+  </div>
+
+  <h3><span class="dot"></span>ليه mAP@50-95 أقل؟</h3>
+  <p class="small">
+    لأنها بتقيس دقة <b>حدود البوكس</b> عند كل نسب التداخل من 50% لـ95%، وده أصعب بكتير من
+    مجرد «هل كشف المطب ولا لأ». الرقم 71.6% كويس جدًا لموديل صغير على فئة واحدة.
+  </p>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>10</span></div>
+</section>
+
+<!-- ================= 11. SIMULATION ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 11</span></div>
+
+  <h2>تقييم جلسة القيادة</h2>
+  <p class="sub">جلسة 95 ثانية بسيناريو ثابت — القياسات والقرار من محرك المشروع الحقيقي.</p>
+
+  <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat"><div class="v">95s</div><div class="l">مدة الجلسة</div></div>
+    <div class="stat"><div class="v">1900</div><div class="l">فريم</div></div>
+    <div class="stat"><div class="v">91.6%</div><div class="l">تغطية الوش</div></div>
+  </div>
+
+  <div class="imgwrap">
+    <img class="contain" src="session_timeline.png" alt="Session timeline">
+    <div class="caption">خط زمني: PERCLOS والحالة على مدار الجلسة</div>
+  </div>
+
+  <div class="grid2" style="margin-top:2mm; align-items:start">
+    <div>
+      <table style="font-size:8.8pt; margin-top:0">
+        <tr><th>الحالة</th><th>النسبة</th></tr>
+        <tr><td>ALERT</td><td>60.5%</td></tr>
+        <tr><td>DISTRACTED</td><td>12.6%</td></tr>
+        <tr><td>DROWSY</td><td>12.5%</td></tr>
+        <tr><td>UNKNOWN</td><td>9.9%</td></tr>
+        <tr><td>LOW RISK</td><td>4.5%</td></tr>
+      </table>
+    </div>
+    <div class="imgwrap" style="padding:2.5mm">
+      <img class="pie" src="state_distribution.png" alt="State distribution">
+      <div class="caption">توزيع الحالات على الجلسة</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>المؤشر</th><th>القيمة</th><th>معناه</th></tr>
+    <tr><td>متوسط PERCLOS</td><td>13.8%</td><td>السواق طبيعي في أغلب الوقت</td></tr>
+    <tr><td>أقصى PERCLOS</td><td>73.2%</td><td>لحظة نعاس حقيقية اتكشفت</td></tr>
+    <tr><td>متوسط الانتباه</td><td>78 / 100</td><td>مستوى جيد مع فترات انخفاض</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>كن صريحًا:</b> دي <b>محاكاة مضبوطة</b> (السيناريو مكتوب)، لكن القياسات والقرار ناتجين من
+    نفس الكود اللي بيشتغل لايف — وده اللي يخليها دليل على صحة المنطق، مش على الأداء في الشارع.
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>11</span></div>
+</section>
+
+<!-- ================= 12. GAPS + PLAN ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 12</span></div>
+
+  <h2>اللي ناقص والخطة</h2>
+  <p class="sub">الاعتراف بالحدود + خطة واضحة = ثقة أعلى من ادعاء الكمال.</p>
+
+  <h3><span class="dot"></span>الحدود الحالية</h3>
+  <table>
+    <tr><th style="width:28%">النقطة</th><th>التفصيل</th><th style="width:20%">الأثر</th></tr>
+    <tr><td>اختبار المطبات ميدانيًا</td><td>الموديل متدرّب ومقيّم، لكن بدون صور من طريقنا</td><td>ثقة أقل في الواقع</td></tr>
+    <tr><td>دمج الهاردوير</td><td>البروتوكول جاهز — التجميع الفعلي مع الزميل</td><td>العرض المادي لسه</td></tr>
+    <tr><td>حساسات إضافية</td><td>MPU6050 (اهتزاز/ميل) و MQ-3 (كحول)</td><td>لم تُضَف بعد</td></tr>
+    <tr><td>ظروف صعبة</td><td>ليل / شمس مباشرة / نضارة شمسية</td><td>دقة أقل</td></tr>
+    <tr><td>مسارين منفصلين</td><td>النعاس في الداشبورد، والطريق في سكريبت مستقل</td><td>محتاج شاشة واحدة</td></tr>
+  </table>
+
+  <h3><span class="dot"></span>خطة المرحلة الجاية (قبل التسليم النهائي)</h3>
+  <table>
+    <tr><th style="width:16%">الأسبوع</th><th>الشغل</th><th style="width:24%">المخرج</th></tr>
+    <tr><td>الأول</td><td>تصوير ~40 صورة مطبات من الطريق + تقييم الموديل عليها</td><td>رقم دقة واقعي</td></tr>
+    <tr><td>الثاني</td><td>تجميع الأردوينو + تجربة الأمر 0/1/2/3/N على الجهاز</td><td>عرض مادي شغال</td></tr>
+    <tr><td>الثالث</td><td>شاشة واحدة تجمع النعاس + المطبات + الإشارة</td><td>نسخة نهائية</td></tr>
+    <tr><td>الرابع</td><td>الفيديو الكامل 45–60 ثانية + بروفة العرض</td><td>تسليم جاهز</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>جملة تقولها للمناقش:</b> «النظام الأساسي مكتمل ومُختبَر بـ99 اختبار، والناقص هو التحقق الميداني
+    والتجميع النهائي — وده مخطط له في ٤ أسابيع.»
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>12</span></div>
+</section>
+
+<!-- ================= 13. GLOSSARY ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 13</span></div>
+
+  <h2>قاموس المصطلحات</h2>
+  <p class="sub">لغة بسيطة لأي مصطلح ممكن يتسأل عنه.</p>
+
+  <table>
+    <tr><th style="width:22%">المصطلح</th><th>يعني إيه بالمصري</th></tr>
+    <tr><td>AI (ذكاء اصطناعي)</td><td>برنامج بيتعلم من أمثلة بدل ما نكتبله كل الاحتمالات بإيدينا</td></tr>
+    <tr><td>MediaPipe Face Mesh</td><td>مكتبة بترسم 468 نقطة على الوش من صورة الكاميرا</td></tr>
+    <tr><td>EAR</td><td>نسبة فتح العين: رقم بيصغر لما العين تقفل</td></tr>
+    <tr><td>MAR</td><td>نسبة فتح البق: بيكبر لما تتثاوب</td></tr>
+    <tr><td>PERCLOS</td><td>نسبة الوقت اللي كانت العين مقفولة فيه خلال فترة — المعيار العلمي للنعاس</td></tr>
+    <tr><td>YOLO</td><td>موديل بيكشف الأجسام في الصورة ويحدد مكانها بسرعة (لحظيًا)</td></tr>
+    <tr><td>Precision</td><td>لما النظام يقول «فيه مطب»، بيبقى صح قد إيه؟ (98.7%)</td></tr>
+    <tr><td>Recall</td><td>من كل المطبات الحقيقية، كشف كام واحدة؟ (97.4%)</td></tr>
+    <tr><td>mAP@50</td><td>مقياس دقة الكشف عند تداخل 50% بين البوكس والحقيقة</td></tr>
+    <tr><td>Debounce</td><td>تثبيت الحالة كام فريم قبل التنفيذ عشان الإنذار ميرفرفش</td></tr>
+    <tr><td>Serial</td><td>خط اتصال بسيط بين الكمبيوتر والأردوينو</td></tr>
+    <tr><td>UNKNOWN</td><td>حالة «مش قادر أقيس» — مش إنذار ومش أمان</td></tr>
+  </table>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>13</span></div>
+</section>
+
+<!-- ================= 14. Q&A ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 14</span></div>
+
+  <h2>أسئلة متوقعة وإجاباتها</h2>
+  <p class="sub">كل إجابة في سطرين — قولها بثقة وبدون حفظ حرفي.</p>
+
+  <div class="qa"><div class="q">1) المشروع ده بيضيف إيه عن الأنظمة الجاهزة؟</div>
+    <div class="a">بيجمع ٣ حاجات في نظام واحد: نعاس السواق + مطبات + إشارة مرور، بموديل مدرَّب عندنا، وكل جزء قابل للتعديل من مكان واحد.</div></div>
+
+  <div class="qa"><div class="q">2) ليه استخدمتوا PERCLOS مش مجرد «العين مقفولة»؟</div>
+    <div class="a">لأن الرمشة العادية نص ثانية. PERCLOS بيقيس نسبة الإغلاق على مدى فترة، فبيفرّق بين رمشة طبيعية ونعاس حقيقي.</div></div>
+
+  <div class="qa"><div class="q">3) إيه اللي يمنع الإنذارات الكاذبة؟</div>
+    <div class="a">تثبيت الحالة 5 فريمات، تجاهل القياسات غير الصالحة، وأي وش غير واضح = UNKNOWN بدون صوت.</div></div>
+
+  <div class="qa"><div class="q">4) دقة الموديل مبنية على إيه؟</div>
+    <div class="a">277 صورة تحقق / 305 حالة مطب، والنتيجة Precision 98.7% وRecall 97.4% وmAP@50 99.4%. والتقرير فيه الرسوم والخطوات لإعادة التشغيل.</div></div>
+
+  <div class="qa"><div class="q">5) بيشتغل في الليل أو بالإضاءة الضعيفة؟</div>
+    <div class="a">دي نقطة محدودة حاليًا. الحل: تحسين الإضاءة أو كاميرا IR، وإضافة ظروف الليل للاختبار في المرحلة الجاية.</div></div>
+
+  <div class="qa"><div class="q">6) إيه أصعب حاجة واجهتكم؟</div>
+    <div class="a">إن السوفتوير يفضل ثابت: عالجنا مشاكل زي عدّاد PERCLOS بالفريمات، ووميض الإنذار، وفصل الكود لموديولات قابلة للاختبار.</div></div>
+
+  <div class="qa"><div class="q">7) المشروع قابل للتوسع؟</div>
+    <div class="a">أيوه — كل حساس أو موديل جديد ليه مكان واضح: هاردوير في <span dir="ltr">hardware/</span>، ورؤية في <span dir="ltr">vision/</span>، وقرار في <span dir="ltr">ai/</span>.</div></div>
+
+  <div class="qa"><div class="q">8) إيه أضعف نقطة في المشروع؟</div>
+    <div class="a">التحقق الميداني. الموديل قوي على بيانات التحقق، لكن لسه محتاج صور من طرق حقيقية لتأكيد الأداء.</div></div>
+
+  <div class="callout">
+    <b>قاعدة ذهبية في المناقشة:</b> لو اتسألت عن حاجة مش منفّذة، متخمّنش. قول: «دي جزء مخطط له ولسه،
+    والسبب كذا، والخطوة الجاية كذا». الصدق الواضح بيكسب ثقة أكتر من إجابة كاملة غلط.
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>14</span></div>
+</section>
+
+<!-- ================= 15. DEMO SCRIPT ================= -->
+<section class="page">
+  <div class="ph"><b>DrowsyGuard AI</b><span>ملف التقييم · 15</span></div>
+
+  <h2>سكريبت العرض — 3 دقايق</h2>
+  <p class="sub">قول الكلام ده بالترتيب وأنت بتفتح البرنامج.</p>
+
+  <div class="card">
+    <h4>0:00 – 0:25 · المقدمة</h4>
+    <p>«المشروع اسمه DrowsyGuard AI. بيعالج ٣ أسباب رئيسية للحوادث: نعاس السواق، المطبات، وتخطي الإشارة الحمراء.
+    الهدف إن النظام ينبّه قبل الحادث، مش يسجّله.»</p>
+  </div>
+
+  <div class="card">
+    <h4>0:25 – 1:10 · كشف النعاس</h4>
+    <p>«الكاميرا بتقرأ 468 نقطة على الوش. منها بنحسب فتح العين EAR، والتثاؤب MAR، وميل الرأس.
+    وبعدين نحسب PERCLOS: نسبة الوقت اللي كانت العين مقفولة فيه في آخر ثانيتين.
+    لو زادت عن 40%، الحالة تبقى DROWSY، والأردوينو بيشغّل إنذار ويهدّي العربية.»</p>
+  </div>
+
+  <div class="card">
+    <h4>1:10 – 1:45 · المطبات وإشارة المرور</h4>
+    <p>«موديل YOLOv8 مدرَّب عندنا على فئة واحدة: مطب — بدقة 98.7% و99.4% mAP@50.
+    وبنفس الفكرة بنكشف إشارة المرور، وفيه عدّاد بيحسب مدة الاستمرار على الأحمر.»</p>
+  </div>
+
+  <div class="card">
+    <h4>1:45 – 2:20 · الدليل والأرقام</h4>
+    <p>«فيه 99 اختبار آلي، وتقرير تقييم فيه منحنيات التدريب وخط زمني لجلسة 95 ثانية،
+    وكل الأرقام قابلة لإعادة التشغيل بأمر واحد.»</p>
+  </div>
+
+  <div class="card">
+    <h4>2:20 – 2:45 · الحدود والخطة</h4>
+    <p>«الناقص هو التحقق الميداني وتجميع الهاردوير، ومخطط له في ٤ أسابيع:
+    تصوير صور مطبات حقيقية، تجميع الأردوينو، شاشة واحدة، والفيديو النهائي.»</p>
+  </div>
+
+  <div class="card">
+    <h4>2:45 – 3:00 · الختام</h4>
+    <p>«الفكرة مش جهاز جديد، لكن طبقة أمان ذكية تقدر تتضاف لأي عربية بكاميرا.»</p>
+  </div>
+
+  <div style="display:flex; gap:10mm; align-items:center; margin-top:6mm; border-top:.8pt solid #E7EAEE; padding-top:5mm">
+    <img src="qr_repo.png" style="width:26mm; height:26mm">
+    <div>
+      <div style="font-weight:700; font-size:11pt">الكود الكامل على GitHub</div>
+      <div class="muted small" dir="ltr" style="text-align:right">github.com/MahmoudAbd0o/DrowsyGuard-AI-DEPI</div>
+      <div class="tagline">امسح الكود من الموبايل في أي وقت قدام المناقش.</div>
+    </div>
+  </div>
+
+  <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>15</span></div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,168 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>DrowsyGuard AI — ورقة المناقشة</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #12161C; font-size: 9.4pt; line-height: 1.55; }
+  .page { width: 210mm; height: 297mm; padding: 10mm 11mm; position: relative; overflow: hidden; }
+
+  .top { background: #D32F2F; color: #fff; border-radius: 3mm; padding: 5mm 6mm; display: flex;
+         justify-content: space-between; align-items: center; }
+  .top h1 { margin: 0; font-size: 21pt; letter-spacing: -.3pt; }
+  .top .r { text-align: left; font-size: 8.6pt; line-height: 1.7; color: #FFE3E3; }
+  .top .r b { display: block; color: #fff; font-size: 10pt; }
+
+  .lead { background: #0E1218; color: #E7ECF2; border-radius: 3mm; padding: 3mm 5mm; margin-top: 2mm; font-size: 10pt; }
+  .lead b { color: #FF7B7B; }
+
+  .nums { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2mm; margin: 2mm 0; }
+  .num { border: .8pt solid #E4E7EB; border-radius: 2.5mm; text-align: center; padding: 1.8mm 1mm; }
+  .num .v { font-size: 14pt; font-weight: 700; color: #D32F2F; line-height: 1.1; }
+  .num .l { font-size: 7.4pt; color: #5C6672; }
+
+  .cols { display: grid; grid-template-columns: 1.05fr .95fr; gap: 4mm; }
+  h2 { font-size: 11pt; margin: 0 0 1.6mm 0; }
+  h2 .n { display: inline-block; width: 2.8mm; height: 2.8mm; background: #D32F2F; border-radius: 50%;
+          margin-left: 1.8mm; vertical-align: middle; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8.4pt; }
+  th { background: #12161C; color: #fff; text-align: right; padding: 1.4mm 2mm; font-size: 8.2pt; }
+  td { border-bottom: .6pt solid #E7EAEE; padding: 1.35mm 2mm; vertical-align: top; }
+  tr:nth-child(even) td { background: #FAFBFC; }
+  td.m { font-family: Consolas, monospace; direction: ltr; text-align: left; font-size: 7.8pt; }
+
+  .qa { margin-bottom: 1.9mm; }
+  .qa b { color: #12161C; }
+  .qa span { color: #4A535E; }
+
+  pre { direction: ltr; text-align: left; background: #0E1218; color: #DDE3EA; border-radius: 2.5mm;
+        padding: 3mm 3.5mm; font-family: Consolas, monospace; font-size: 8pt; line-height: 1.55; margin: 2mm 0 0 0; }
+  pre .c { color: #7F8B99; }
+
+  .foot { position: absolute; bottom: 6mm; right: 11mm; left: 11mm; display: flex;
+          justify-content: space-between; align-items: center; border-top: .8pt solid #E7EAEE; padding-top: 2.5mm; }
+  .foot .qr { width: 15mm; height: 15mm; }
+  .foot .txt { font-size: 8.2pt; color: #5C6672; }
+  .foot .txt b { color: #12161C; display: block; font-size: 9pt; }
+
+  .states { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; }
+  .st { border-radius: 2.5mm; padding: 1.8mm 2mm; text-align: center; font-size: 8.6pt; font-weight: 700; }
+  .st small { display: block; font-weight: 400; font-size: 7.4pt; margin-top: .8mm; opacity: .85; }
+  .st-a { background: #E7F7EE; color: #177A46; }
+  .st-l { background: #FFF6DA; color: #8A6A00; }
+  .st-d { background: #FFF0E0; color: #9A5A10; }
+  .st-w { background: #FDECEC; color: #A62828; }
+  .st-u { background: #EEF0F3; color: #5C6672; }
+
+  .plan { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm; }
+  .pl { border: .8pt solid #E4E7EB; border-radius: 2.5mm; padding: 1.8mm 3mm; }
+  .pl b { display: block; color: #D32F2F; font-size: 8.4pt; margin-bottom: .8mm; }
+  .pl span { font-size: 8.2pt; color: #4A535E; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+  .say { border-right: 3pt solid #D32F2F; background: #FDF3F3; border-radius: 0 2mm 2mm 0;
+         padding: 2mm 3.2mm; font-size: 8.4pt; color: #4A2A2A; }
+  .say b { display: block; color: #A62828; font-size: 8.6pt; margin-bottom: 1mm; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="top">
+    <h1>ورقة المناقشة — DrowsyGuard AI</h1>
+    <div class="r"><b>مشروع تخرج · DEPI</b>محمود عبده · أكتوبر 2026</div>
+  </div>
+
+  <div class="lead">
+    <b>الفكرة:</b> نظام واحد بكاميرا واحدة يراقب <b>نعاس السائق</b>، ويكشف <b>المطبات</b> و<b>إشارة المرور الحمراء</b>،
+    وينبّه فورًا عن طريق الأردوينو (ليد + بازر + اهتزاز).
+  </div>
+
+  <div class="nums">
+    <div class="num"><div class="v">98.7%</div><div class="l">Precision</div></div>
+    <div class="num"><div class="v">97.4%</div><div class="l">Recall</div></div>
+    <div class="num"><div class="v">99.4%</div><div class="l">mAP@50</div></div>
+    <div class="num"><div class="v">71.6%</div><div class="l">mAP@50-95</div></div>
+    <div class="num"><div class="v">99</div><div class="l">اختبار ناجح</div></div>
+    <div class="num"><div class="v">95s</div><div class="l">جلسة مُقيَّمة</div></div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h2><span class="n"></span>الأجزاء في سطور</h2>
+      <table>
+        <tr><th style="width:33%">الجزء</th><th>وظيفته</th></tr>
+        <tr><td class="m">config.py</td><td>كل العتبات والأرقام في مكان واحد</td></tr>
+        <tr><td class="m">ai/features.py</td><td>EAR للعين · MAR للتثاؤب · ميل الرأس</td></tr>
+        <tr><td class="m">ai/perclos.py</td><td>نسبة إغلاق العين خلال 2 ثانية</td></tr>
+        <tr><td class="m">ai/drowsiness.py</td><td>5 حالات: <span dir="ltr">ALERT · LOW RISK · DISTRACTED · DROWSY · UNKNOWN</span></td></tr>
+        <tr><td class="m">vision/road_scene.py</td><td>مطبات YOLO + إشارة مرور + عدّاد</td></tr>
+        <tr><td class="m">hardware/protocol.py</td><td>5 أوامر: <span dir="ltr">0 · 1 · 2 · 3 · N</span></td></tr>
+        <tr><td class="m">data/</td><td>تسجيل CSV + حساب الدقة</td></tr>
+        <tr><td class="m">tests/</td><td>99 اختبار يحمي الكود</td></tr>
+      </table>
+
+      <h2 style="margin-top:4mm"><span class="n"></span>أوامر التشغيل</h2>
+      <pre>conda activate drowsiness
+python dashboard.py      <span class="c"># النعاس (الواجهة)</span>
+python yolo_phase2.py    <span class="c"># المطبات + الإشارة</span>
+python tools/make_report.py  <span class="c"># التقرير</span></pre>
+    </div>
+
+    <div>
+      <h2><span class="n"></span>أسئلة وإجابات في سطر</h2>
+
+      <div class="qa"><b>PERCLOS يعني إيه؟</b><br><span>نسبة الوقت اللي كانت العين مقفولة فيه في آخر ثانيتين — المعيار العلمي للنعاس.</span></div>
+      <div class="qa"><b>ليه مش «العين مقفولة» بس؟</b><br><span>لأن الرمشة نص ثانية؛ PERCLOS بيفرّق بينها وبين نعاس حقيقي.</span></div>
+      <div class="qa"><b>إيه اللي يمنع الإنذار الكاذب؟</b><br><span>تثبيت 5 فريمات + تجاهل القياس الغلط + الوش الغائب = UNKNOWN بدون صوت.</span></div>
+      <div class="qa"><b>دقة الموديل؟</b><br><span>Precision 98.7% · Recall 97.4% · mAP@50 99.4% على 277 صورة تحقق.</span></div>
+      <div class="qa"><b>بيشتغل بالليل؟</b><br><span>نقطة محدودة حاليًا؛ الحل: إضاءة أفضل أو كاميرا IR.</span></div>
+      <div class="qa"><b>الناقص إيه؟</b><br><span>التحقق الميداني وتجميع الهاردوير — مخطط له في 4 أسابيع.</span></div>
+    </div>
+  </div>
+
+  <h2 style="margin-top:4mm"><span class="n"></span>الحالات الخمس</h2>
+  <div class="states">
+    <div class="st st-a">ALERT<small>طبيعي</small></div>
+    <div class="st st-l">LOW RISK<small>رمش / تثاؤب</small></div>
+    <div class="st st-d">DISTRACTED<small>رأس ملفوف</small></div>
+    <div class="st st-w">DROWSY<small>PERCLOS ≥ 40%</small></div>
+    <div class="st st-u">UNKNOWN<small>قياس غير صالح</small></div>
+  </div>
+
+  <h2 style="margin-top:3mm"><span class="n"></span>خطة 4 أسابيع</h2>
+  <div class="plan">
+    <div class="pl"><b>الأسبوع 1</b><span>تصوير 40 صورة مطبات + تقييم الموديل</span></div>
+    <div class="pl"><b>الأسبوع 2</b><span>تجميع الأردوينو وتجربة الأوامر</span></div>
+    <div class="pl"><b>الأسبوع 3</b><span>شاشة واحدة: نعاس + مطبات + إشارة</span></div>
+    <div class="pl"><b>الأسبوع 4</b><span>الفيديو النهائي + بروفة العرض</span></div>
+  </div>
+
+  <h2 style="margin-top:3mm"><span class="n"></span>افتتاحية وختامية</h2>
+  <div class="grid2">
+    <div class="say">
+      <b>تقولها في أول دقيقة:</b>
+      «المشروع بيعالج ٣ أسباب رئيسية للحوادث: نعاس السواق، المطبات، وتخطي الإشارة الحمراء.
+      الهدف إن النظام ينبّه قبل الحادث، مش يسجّله.»
+    </div>
+    <div class="say">
+      <b>تقولها في الآخر:</b>
+      «الفكرة مش جهاز جديد، لكن طبقة أمان ذكية تقدر تتضاف لأي عربية بكاميرا — وبأقل تكلفة.»
+    </div>
+  </div>
+
+  <div class="foot">
+    <img class="qr" src="qr_repo.png" alt="QR">
+    <div class="txt">
+      <b>الكود الكامل + التقرير</b>
+      github.com/MahmoudAbd0o/DrowsyGuard-AI-DEPI
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
