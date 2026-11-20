@@ -18,14 +18,18 @@ class FaceDetector:
 
     def __init__(self,
                  max_faces: int = 2,
-                 detection_confidence: float = 0.5,
-                 tracking_confidence: float = 0.5,
+                 detection_confidence: float | None = None,
+                 tracking_confidence: float | None = None,
                  refine_landmarks: bool = True):
         self.mesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=max_faces,
             refine_landmarks=refine_landmarks,
-            min_detection_confidence=detection_confidence,
-            min_tracking_confidence=tracking_confidence,
+            min_detection_confidence=float(
+                config.DETECTION_CONFIDENCE if detection_confidence is None
+                else detection_confidence),
+            min_tracking_confidence=float(
+                config.TRACKING_CONFIDENCE if tracking_confidence is None
+                else tracking_confidence),
         )
 
     def process(self, frame_bgr: np.ndarray) -> list[np.ndarray]:
@@ -56,6 +60,47 @@ class FaceDetector:
 
     def __exit__(self, *exc) -> None:
         self.close()
+
+
+def centre_crop(frame_w: int, frame_h: int,
+                factor: float | None = None) -> tuple[int, int, int, int]:
+    """Return the (x, y, w, h) of a centred crop ``factor`` times smaller.
+
+    Used as a digital zoom: when the driver is far from the camera the face is
+    only a handful of pixels wide, so we crop the middle of the frame, upscale
+    it back to full size and let MediaPipe try again.
+    """
+    zoom = max(1.0, float(config.ZOOM_FACTOR if factor is None else factor))
+    width = max(1, int(round(frame_w / zoom)))
+    height = max(1, int(round(frame_h / zoom)))
+    width = min(width, int(frame_w))
+    height = min(height, int(frame_h))
+    return ((int(frame_w) - width) // 2, (int(frame_h) - height) // 2,
+            width, height)
+
+
+def remap_landmarks(faces: list[np.ndarray],
+                    crop_x: int, crop_y: int,
+                    crop_w: int, crop_h: int,
+                    frame_w: int, frame_h: int) -> list[np.ndarray]:
+    """Map landmarks found on an upscaled crop back to original frame pixels.
+
+    The crop is resized to ``frame_w x frame_h`` before detection, so a point
+    ``p`` in the crop frame corresponds to
+    ``crop_x + p.x * crop_w / frame_w`` in the original frame.
+    """
+    if frame_w <= 0 or frame_h <= 0:
+        return [np.array(face, dtype=float, copy=True) for face in faces]
+    scale_x = float(crop_w) / float(frame_w)
+    scale_y = float(crop_h) / float(frame_h)
+    mapped: list[np.ndarray] = []
+    for face in faces:
+        points = np.array(face, dtype=float, copy=True)
+        if points.size:
+            points[:, 0] = points[:, 0] * scale_x + float(crop_x)
+            points[:, 1] = points[:, 1] * scale_y + float(crop_y)
+        mapped.append(points)
+    return mapped
 
 
 def select_driver(faces: list[np.ndarray],

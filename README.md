@@ -21,7 +21,8 @@ python main.py               # full dashboard (or: python dashboard.py)
 python drowsiness_phase0.py  # minimal: face + eye % + risk
 python drowsiness_phase1.py  # + yawning + distraction
 ```
-Keys: `Q` quit (phase scripts), `M` mute beep, `R` start/stop recording (dashboard).
+Keys: `Q` quit (phase scripts), `M` mute beep, `R` start/stop recording,
+`C` re-run eye calibration (dashboard).
 
 ## Project structure
 ```text
@@ -35,9 +36,10 @@ DrowsyGuard-AI-DEPI-main/
 │   └── road_scene.py        # traffic light + speed-bump detection (YOLO)
 ├── ai/
 │   ├── features.py          # EAR / MAR / head pose (pure functions)
+│   ├── calibration.py       # personal eye calibration + EAR median filter
 │   ├── perclos.py           # timestamp-based PERCLOS + coverage
 │   ├── attention.py         # 0–100 attention score
-│   └── drowsiness.py        # driver states + rule-based decision engine
+│   └── drowsiness.py        # driver states + decision engine + stabiliser
 ├── hardware/
 │   └── protocol.py          # Python <-> Arduino commands + debounce
 ├── data/
@@ -48,7 +50,7 @@ DrowsyGuard-AI-DEPI-main/
 │   ├── simulate_session.py      # scripted session log for the report
 │   └── make_report.py           # charts + report/report.md
 ├── report/                  # generated figures + Evaluation Report
-├── tests/                   # 99 unit tests (unittest)
+├── tests/                   # 121 unit tests (unittest)
 ├── outputs/                 # generated logs & reports (gitignored)
 ├── arduino_bridge/arduino_bridge.ino
 ├── drowsiness_phase0.py
@@ -77,11 +79,32 @@ means the driver is safe.
 - The dashboard shows `--` until enough valid samples exist.
 - Coverage (valid / total) is logged with every frame.
 
+## False alarms and distance (v2 tuning)
+Two field problems were fixed without adding hardware:
+
+1. **Personal eye calibration** (`ai/calibration.py`) - the first 3 seconds
+   measure the driver's own open-eye EAR and derive the closed threshold
+   (`baseline x 0.60`, clamped to 0.13-0.26). Press `C` to redo it.
+2. **EAR validity gate** - a turned head (`head_turn_ratio > 0.22`) or a face
+   narrower than 110 px makes the eye measurement `None` instead of "closed".
+   Looking at the screen can no longer fake a closure.
+3. **Median filter** over the last 5 EAR samples - one bad frame is ignored.
+4. **Time-based confirmation** (`ai.drowsiness.DecisionStabilizer`) - DROWSY
+   must hold 1.2 s before the red alarm (the driver sees a yellow warning
+   first) and is only released below 25% PERCLOS + 0.8 s hold.
+5. **1280x720 capture + centre-zoom retry** - when no face is found, the middle
+   of the frame is cropped and re-detected once (`ZOOM_FACTOR = 2`), and the
+   screen shows `MOVE CLOSER TO THE CAMERA` instead of failing silently.
+
+Every decision now writes its reason to the screen and to the `reason` column
+of the session CSV, so a false alarm can be diagnosed after the fact.
+
 ## Tests
 ```bash
 python -m unittest discover -s tests -t . -v
 ```
-Covers: features, PERCLOS + missing data, decision logic, serial protocol,
+Covers: features, PERCLOS + missing data, decision logic + stabiliser,
+eye calibration, EAR smoothing, zoom geometry, serial protocol,
 driver selection, road-scene detection, logging, evaluation metrics and
 report helpers.
 
@@ -150,7 +173,7 @@ See `TESTING.md`: 13 cases (eyes, yawn x2, look-away, no-face, 2 people, glasses
 - [x] Phase 0: face + eye % + risk + alert
 - [x] Phase 1: yawning + distraction
 - [x] Dashboard (live % + graph + status + graduated alarm)
-- [x] Modular architecture + 99 automated tests
+- [x] Modular architecture + 121 automated tests
 - [ ] Arduino hardware test (buzzer/LED/brake)
 - [x] YOLO: traffic light + speed bump (`bump_model.pt`, mAP@50 99.4%)
 - [x] Evaluation report (`report/report.md`)

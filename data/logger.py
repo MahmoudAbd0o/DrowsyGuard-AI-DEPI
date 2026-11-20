@@ -14,9 +14,9 @@ from datetime import datetime
 import config
 
 MEASUREMENT_FIELDS = [
-    "timestamp", "state", "level", "perclos", "ear", "mar",
+    "timestamp", "state", "level", "reason", "perclos", "ear", "mar",
     "attention", "head_down", "distracted", "yawning",
-    "face_present", "coverage",
+    "face_present", "eye_valid", "coverage",
 ]
 
 
@@ -40,15 +40,18 @@ class MeasurementLogger:
         self.rows_written = 0
 
     def log(self, *, timestamp: float, state: str, level: str,
-            perclos: float | None = None, ear: float | None = None,
+            reason: str = "", perclos: float | None = None,
+            ear: float | None = None,
             mar: float | None = None, attention: float | None = None,
             head_down: bool = False, distracted: bool = False,
             yawning: bool = False, face_present: bool = True,
+            eye_valid: bool = False,
             coverage: float | None = None) -> None:
         self._buffer.append({
             "timestamp": f"{timestamp:.3f}",
             "state": state,
             "level": level,
+            "reason": str(reason).replace(",", ";").replace("\n", " ")[:180],
             "perclos": "" if perclos is None else f"{perclos:.2f}",
             "ear": "" if ear is None else f"{ear:.4f}",
             "mar": "" if mar is None else f"{mar:.4f}",
@@ -57,6 +60,7 @@ class MeasurementLogger:
             "distracted": int(bool(distracted)),
             "yawning": int(bool(yawning)),
             "face_present": int(bool(face_present)),
+            "eye_valid": int(bool(eye_valid)),
             "coverage": "" if coverage is None else f"{coverage:.3f}",
         })
         if len(self._buffer) >= self.buffer_size:

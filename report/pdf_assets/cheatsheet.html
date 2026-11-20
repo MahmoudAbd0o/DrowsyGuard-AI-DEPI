@@ -87,7 +87,7 @@
     <div class="num"><div class="v">97.4%</div><div class="l">Recall</div></div>
     <div class="num"><div class="v">99.4%</div><div class="l">mAP@50</div></div>
     <div class="num"><div class="v">71.6%</div><div class="l">mAP@50-95</div></div>
-    <div class="num"><div class="v">99</div><div class="l">اختبار ناجح</div></div>
+    <div class="num"><div class="v">121</div><div class="l">اختبار ناجح</div></div>
     <div class="num"><div class="v">95s</div><div class="l">جلسة مُقيَّمة</div></div>
   </div>
 
@@ -103,7 +103,7 @@
         <tr><td class="m">vision/road_scene.py</td><td>مطبات YOLO + إشارة مرور + عدّاد</td></tr>
         <tr><td class="m">hardware/protocol.py</td><td>5 أوامر: <span dir="ltr">0 · 1 · 2 · 3 · N</span></td></tr>
         <tr><td class="m">data/</td><td>تسجيل CSV + حساب الدقة</td></tr>
-        <tr><td class="m">tests/</td><td>99 اختبار يحمي الكود</td></tr>
+        <tr><td class="m">tests/</td><td>121 اختبار يحمي الكود</td></tr>
       </table>
 
       <h2 style="margin-top:4mm"><span class="n"></span>أوامر التشغيل</h2>
@@ -118,7 +118,7 @@ python tools/make_report.py  <span class="c"># التقرير</span></pre>
 
       <div class="qa"><b>PERCLOS يعني إيه؟</b><br><span>نسبة الوقت اللي كانت العين مقفولة فيه في آخر ثانيتين — المعيار العلمي للنعاس.</span></div>
       <div class="qa"><b>ليه مش «العين مقفولة» بس؟</b><br><span>لأن الرمشة نص ثانية؛ PERCLOS بيفرّق بينها وبين نعاس حقيقي.</span></div>
-      <div class="qa"><b>إيه اللي يمنع الإنذار الكاذب؟</b><br><span>تثبيت 5 فريمات + تجاهل القياس الغلط + الوش الغائب = UNKNOWN بدون صوت.</span></div>
+      <div class="qa"><b>إيه اللي يمنع الإنذار الكاذب؟</b><br><span>معايرة عين شخصية + تجاهل القياس عند زاوية الوش + تأكيد 1.2 ثانية قبل الأحمر.</span></div>
       <div class="qa"><b>دقة الموديل؟</b><br><span>Precision 98.7% · Recall 97.4% · mAP@50 99.4% على 277 صورة تحقق.</span></div>
       <div class="qa"><b>بيشتغل بالليل؟</b><br><span>نقطة محدودة حاليًا؛ الحل: إضاءة أفضل أو كاميرا IR.</span></div>
       <div class="qa"><b>الناقص إيه؟</b><br><span>التحقق الميداني وتجميع الهاردوير — مخطط له في 4 أسابيع.</span></div>

@@ -160,7 +160,7 @@
       <div class="tag">نظام ذكي يراقب السائق لحظة بلحظة،<br>ويكشف النعاس والمطبات وإشارة المرور الحمراء.</div>
       <div class="chips">
         <div class="chip"><b>98.7%</b> دقة كشف المطبات</div>
-        <div class="chip"><b>99</b> اختبار ناجح</div>
+        <div class="chip"><b>121</b> اختبار ناجح</div>
         <div class="chip"><b>5</b> حالات للسائق</div>
       </div>
       <div class="meta">
@@ -274,7 +274,7 @@
   </table>
 
   <div class="callout">
-    <b>الخلاصة:</b> كل السوفتوير مكتمل ومُختبَر (99 اختبار)، والناقص عمليّات تركيب وتجربة ميدانية.
+    <b>الخلاصة:</b> كل السوفتوير مكتمل ومُختبَر (121 اختبار)، والناقص عمليّات تركيب وتجربة ميدانية.
   </div>
 
   <h3><span class="dot"></span>نسبة الإنجاز الحالية</h3>
@@ -335,7 +335,7 @@
 │   ├── logger.py          <span class="c"># CSV + سجل الأحداث</span>
 │   └── evaluate.py        <span class="c"># Precision / Recall / Latency</span>
 │
-├── <span class="r">tests/</span>                 <span class="c"># 9 ملفات — 99 اختبار</span>
+├── <span class="r">tests/</span>                 <span class="c"># 10 ملفات — 121 اختبار</span>
 ├── <span class="r">tools/</span>                 <span class="c"># محاكاة / تقرير / فيديو / داتاسيت</span>
 ├── notebooks/             <span class="c"># تدريب الموديل على Kaggle</span>
 ├── report/                <span class="c"># تقرير التقييم + الرسوم</span>
@@ -403,8 +403,8 @@
   </div>
 
   <div class="callout">
-    <b>قرار تصميمي مهم:</b> «الوش مش ظاهر» أو «القياس غلط» = UNKNOWN (بدون إنذار صوتي)،
-    مش ALERT. ده بيقلل الإنذارات الكاذبة اللي بتخلي السواق يفصل النظام.
+    <b>ضد الإنذارات الكاذبة:</b> معايرة عين شخصية (<span dir="ltr">ai/calibration.py</span>) + تجاهل القياس عند زاوية الوش
+    + تأكيد النعاس 1.2 ثانية. والوش الغائب = UNKNOWN بدون صوت.
   </div>
 
   <div class="pf"><span>DrowsyGuard AI — مشروع تخرج</span><span>05</span></div>
@@ -518,7 +518,7 @@
 
   <h3><span class="dot"></span>المسار الأول: مراقبة السائق</h3>
   <div class="flow">
-    <div class="fbox"><div class="n">1</div><div class="t"><b>كاميرا</b> — 640×480، مع إعادة اتصال تلقائي</div></div>
+    <div class="fbox"><div class="n">1</div><div class="t"><b>كاميرا</b> — 1280×720، مع إعادة اتصال تلقائي وزووم عند البعد</div></div>
     <div class="arrow">▼</div>
     <div class="fbox"><div class="n">2</div><div class="t"><b>MediaPipe</b> — 468 نقطة على الوش (أرقام إحداثيات)</div></div>
     <div class="arrow">▼</div>
@@ -578,7 +578,7 @@
     <tr><td>التسجيل</td><td>حفظ الجلسة</td><td>CSV لكل فريم (مخزّن) + سجل أحداث</td><td class="mono">data/logger.py</td></tr>
     <tr><td>التقييم</td><td>قياس دقة النظام</td><td>Precision / Recall / F1 / إنذارات كاذبة / زمن اكتشاف</td><td class="mono">data/evaluate.py</td></tr>
     <tr><td>الأدوات</td><td>توليد المخرجات</td><td>محاكاة جلسة + تقرير + فيديو + داتاسيت</td><td class="mono">tools/</td></tr>
-    <tr><td>الاختبارات</td><td>حماية الكود</td><td>99 اختبار على القرار والقياسات والبروتوكول والتقرير</td><td class="mono">tests/</td></tr>
+    <tr><td>الاختبارات</td><td>حماية الكود</td><td>121 اختبار على القرار والقياسات والبروتوكول والتقرير</td><td class="mono">tests/</td></tr>
   </table>
 
   <div class="callout">
@@ -703,7 +703,7 @@
   </table>
 
   <div class="callout">
-    <b>جملة تقولها للمناقش:</b> «النظام الأساسي مكتمل ومُختبَر بـ99 اختبار، والناقص هو التحقق الميداني
+    <b>جملة تقولها للمناقش:</b> «النظام الأساسي مكتمل ومُختبَر بـ121 اختبار، والناقص هو التحقق الميداني
     والتجميع النهائي — وده مخطط له في ٤ أسابيع.»
   </div>
 
@@ -803,7 +803,7 @@
 
   <div class="card">
     <h4>1:45 – 2:20 · الدليل والأرقام</h4>
-    <p>«فيه 99 اختبار آلي، وتقرير تقييم فيه منحنيات التدريب وخط زمني لجلسة 95 ثانية،
+    <p>«فيه 121 اختبار آلي، وتقرير تقييم فيه منحنيات التدريب وخط زمني لجلسة 95 ثانية،
     وكل الأرقام قابلة لإعادة التشغيل بأمر واحد.»</p>
   </div>
 

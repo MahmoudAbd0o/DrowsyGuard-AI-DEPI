@@ -47,12 +47,14 @@ import config
 from ai import drowsiness as ds
 from ai import features
 from ai.attention import attention_level, attention_score
-from ai.drowsiness import DecisionEngine
+from ai.calibration import EarSmoother, EyeCalibrator, eye_gate
+from ai.drowsiness import DecisionEngine, DecisionStabilizer
 from ai.perclos import PerclosMeter
 from data.logger import EventLog, MeasurementLogger
 from hardware.protocol import LevelDebouncer, command_for_state
 from vision.camera import Camera
-from vision.face_detector import FaceDetector, select_driver
+from vision.face_detector import (FaceDetector, centre_crop, remap_landmarks,
+                                  select_driver)
 
 try:
     import serial
@@ -81,11 +83,14 @@ class Dashboard(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("DrowsyGuard AI | ENG. Mahmoud Abdo")
-        self.geometry("1180x760")
+        self.geometry("1220x800")
 
         # --- state / measurement objects ---
         self.perclos_meter = PerclosMeter()
         self.engine = DecisionEngine()
+        self.stabilizer = DecisionStabilizer()
+        self.ear_smoother = EarSmoother()
+        self.calibrator = EyeCalibrator()
         self.debouncer = LevelDebouncer()
         self.graph_hist = deque(maxlen=config.GRAPH_LEN)
         self.yawns = deque(maxlen=16)
@@ -104,6 +109,10 @@ class Dashboard(ctk.CTk):
         self.ser = None
         self.vision_errors = 0
         self._last_reconnects = 0
+        self.zoom = 1.0
+        self.eye_gate = "no face"
+        self.eye_valid = False
+        self.too_far_hint = False
 
         # --- logging ---
         self.meas_log = MeasurementLogger()
@@ -131,6 +140,8 @@ class Dashboard(ctk.CTk):
         self.writer = None
         self.bind("<KeyPress-r>", lambda e: self.toggle_rec())
         self.bind("<KeyPress-R>", lambda e: self.toggle_rec())
+        self.bind("<KeyPress-c>", lambda e: self.recalibrate())
+        self.bind("<KeyPress-C>", lambda e: self.recalibrate())
         self.last_dark_warn = 0.0
 
         # --- layout: video left, stats right ---
@@ -161,7 +172,7 @@ class Dashboard(ctk.CTk):
         self.mute_btn.grid(row=7, column=1, padx=12, pady=4, sticky="ew")
 
         # --- graph bottom-left ---
-        self.fig = Figure(figsize=(5.4, 2.4), dpi=90)
+        self.fig = Figure(figsize=(6.6, 2.2), dpi=90)
         self.ax = self.fig.add_subplot(111)
         self.ax.set_ylim(0, 100)
         self.ax.set_title("Eye closure % (live)")
@@ -179,8 +190,15 @@ class Dashboard(ctk.CTk):
         if getattr(self, "_pending_log", ""):
             self.log.insert("end", self._pending_log + "\n")
 
-        self.grid_columnconfigure(0, weight=3)
-        self.grid_columnconfigure(1, weight=2)
+        self.reason_lbl = ctk.CTkLabel(
+            self, text="Reason: --", font=("Consolas", 13),
+            text_color="#9AA3AE", anchor="w", justify="left",
+        )
+        self.reason_lbl.grid(row=9, column=0, columnspan=2,
+                             padx=14, pady=(0, 8), sticky="ew")
+
+        self.grid_columnconfigure(0, weight=0, minsize=config.DISPLAY_WIDTH + 24)
+        self.grid_columnconfigure(1, weight=1)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(100, lambda: (self.lift(), self.focus_force()))
         self.after(30, self.loop)
@@ -189,6 +207,72 @@ class Dashboard(ctk.CTk):
     def toggle_mute(self):
         self.muted = not self.muted
         self.mute_btn.configure(text=f"Mute: {'ON' if self.muted else 'OFF'}")
+
+    def recalibrate(self):
+        """Restart eye calibration (press C)."""
+        self.calibrator.reset()
+        self.perclos_meter.reset()
+        self.ear_smoother.reset()
+        self.stabilizer.reset()
+        self.debouncer.reset()
+        self.add_log("Eye calibration started - look at the camera, eyes open.")
+
+    def _detect(self, frame, min_face_width=None):
+        """Detect faces, retrying once with a centre zoom when needed.
+
+        A second pass is triggered when nobody is found **or** when the driver's
+        box is narrower than ``min_face_width`` (the driver is far away and the
+        landmarks are too coarse to trust). The pass that sees the driver
+        bigger wins.
+
+        Returns ``(faces, zoom)`` where ``zoom`` is 1.0 for a normal pass or
+        ``config.ZOOM_FACTOR`` when the crop retry was used.
+        """
+        height, width = frame.shape[:2]
+        faces = self.detector.process(frame)
+
+        def driver_width(candidates):
+            if not candidates:
+                return 0
+            index = select_driver(candidates, width, height)
+            box = features.face_bbox(candidates[index])
+            return 0 if box is None else (box[2] - box[0])
+
+        need_zoom = not faces
+        if faces and min_face_width:
+            need_zoom = driver_width(faces) < int(min_face_width)
+        if not need_zoom:
+            return faces, 1.0
+
+        x, y, crop_w, crop_h = centre_crop(width, height, config.ZOOM_FACTOR)
+        if crop_w >= width or crop_h >= height:
+            return faces, 1.0
+        crop = frame[y:y + crop_h, x:x + crop_w]
+        crop = cv2.resize(crop, (width, height), interpolation=cv2.INTER_LINEAR)
+        zoomed = self.detector.process(crop)
+        if not zoomed:
+            return faces, 1.0
+        mapped = remap_landmarks(zoomed, x, y, crop_w, crop_h, width, height)
+        if faces and driver_width(mapped) < driver_width(faces):
+            return faces, 1.0
+        return mapped, config.ZOOM_FACTOR
+
+    @staticmethod
+    def _draw_banner(frame, text, colour, scale=1.0):
+        """Draw a centred, black-backed banner on top of the video frame."""
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        size = 0.9 * scale
+        thickness = max(2, int(round(2 * scale)))
+        (text_w, text_h), _ = cv2.getTextSize(text, font, size, thickness)
+        height, width = frame.shape[:2]
+        x = max(0, (width - text_w) // 2)
+        y = int(62 * scale)
+        pad_x, pad_y = int(12 * scale), int(10 * scale)
+        cv2.rectangle(frame,
+                      (max(0, x - pad_x), max(0, y - text_h - pad_y)),
+                      (min(width - 1, x + text_w + pad_x), y + pad_y),
+                      (0, 0, 0), -1)
+        cv2.putText(frame, text, (x, y), font, size, colour, thickness)
 
     def add_log(self, msg):
         ts = datetime.now().strftime("%H:%M:%S")
@@ -274,7 +358,7 @@ class Dashboard(ctk.CTk):
             frame = cv2.cvtColor(cv2.merge((_l, _a, _b)), cv2.COLOR_LAB2BGR)
 
         try:
-            faces = self.detector.process(frame)
+            faces, self.zoom = self._detect(frame, config.FACE_TOO_FAR_WIDTH_PX)
         except Exception as e:
             self.vision_errors += 1
             if self.vision_errors <= 3:
@@ -285,6 +369,7 @@ class Dashboard(ctk.CTk):
         now = time.monotonic()
         face_present = bool(faces)
         perclos = None
+        raw_ear = None
         avg_ear = None
         mar = None
         head_down = False
@@ -292,7 +377,9 @@ class Dashboard(ctk.CTk):
         distracted = False
         recent = 0
         too_far = False
+        eye_valid = False
         lm = None
+        turn = None
 
         if face_present:
             driver_idx = select_driver(faces, w, h)
@@ -307,12 +394,38 @@ class Dashboard(ctk.CTk):
 
             lm = faces[driver_idx]
             box = features.face_bbox(lm)
+            face_w_px = 0 if box is None else (box[2] - box[0])
+            # Landmarks from a zoomed pass are ~ZOOM_FACTOR larger; convert back
+            # so "is the driver really far?" is measured on the real frame.
+            real_w_px = face_w_px / max(1.0, self.zoom)
             if box is not None:
-                cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), config.BGR_GREEN, 2)
-            too_far = features.face_fraction(lm, w, h) < 0.02
+                box_colour = config.BGR_ORANGE if self.zoom > 1.0 else config.BGR_GREEN
+                cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), box_colour, 2)
+            too_far = face_w_px < config.FACE_TOO_FAR_WIDTH_PX
+            # Still ask the driver to come closer even when the zoom pass made
+            # the landmarks usable.
+            self.too_far_hint = real_w_px < config.FACE_TOO_FAR_WIDTH_PX
 
-            avg_ear = features.average_ear(lm)
-            eye_closed = None if avg_ear is None else (avg_ear < config.EAR_CLOSED_THRESH)
+            turn = features.head_turn_ratio(lm)
+
+            raw_ear = features.average_ear(lm)
+            self.eye_gate = eye_gate(face_w_px, turn, raw_ear)
+
+            if self.eye_gate == "ok":
+                avg_ear = self.ear_smoother.update(raw_ear)
+            else:
+                # A turned head / tiny face deforms the eye corners: feeding it
+                # to the meter would fake a closed eye and trigger DROWSY.
+                self.ear_smoother.update(None)
+                avg_ear = None
+            eye_valid = avg_ear is not None
+
+            if not self.calibrator.done:
+                if self.calibrator.feed(now, avg_ear if eye_valid else None):
+                    self.add_log("Calibration done - " + self.calibrator.summary())
+                    self.perclos_meter.reset()
+
+            eye_closed = self.calibrator.is_closed(avg_ear) if eye_valid else None
             perclos = self.perclos_meter.update(now, eye_closed)
 
             mar = features.mar(lm)
@@ -330,7 +443,6 @@ class Dashboard(ctk.CTk):
             hd = features.head_down_ratio(lm)
             head_down = hd is not None and hd > config.HEAD_DOWN_THRESH
 
-            turn = features.head_turn_ratio(lm)
             if turn is not None:
                 self.turn_hist.append(turn)
                 smooth = sum(self.turn_hist) / len(self.turn_hist)
@@ -348,17 +460,28 @@ class Dashboard(ctk.CTk):
                               and now >= self.distract_ready_at)
         else:
             perclos = self.perclos_meter.update(now, None)
+            self.ear_smoother.update(None)
+            self.eye_gate = "no face"
+            self.too_far_hint = False
 
         # ------------------------------------------------------- decision --
-        decision = self.engine.evaluate(
-            perclos=perclos,
-            head_down=head_down,
-            distracted=distracted,
-            recent_yawns=recent,
-            yawning_now=yawning_now,
-            face_present=face_present,
-            too_far=too_far,
-        )
+        if self.calibrator.active:
+            # Do not judge the driver while we are still learning their eyes.
+            decision = ds.Decision(
+                ds.UNKNOWN,
+                f"calibrating eyes {self.calibrator.progress * 100:.0f}% - keep them open",
+            )
+        else:
+            raw_decision = self.engine.evaluate(
+                perclos=perclos,
+                head_down=head_down,
+                distracted=distracted,
+                recent_yawns=recent,
+                yawning_now=yawning_now,
+                face_present=face_present,
+                too_far=too_far,
+            )
+            decision = self.stabilizer.apply(raw_decision, perclos, now)
         state = decision.state
         level = command_for_state(state)
         stable_level = self.debouncer.update(level)
@@ -416,8 +539,13 @@ class Dashboard(ctk.CTk):
             self.was_low_att = False
 
         # -------------------------------------------------------------- UI --
-        label, color = STATE_DISPLAY.get(state, (state, "gray"))
-        self.status_lbl.configure(text=label, text_color=color)
+        if self.calibrator.active:
+            self.status_lbl.configure(
+                text=f"CALIBRATING {self.calibrator.progress * 100:.0f}% - keep eyes open",
+                text_color="orange")
+        else:
+            label, color = STATE_DISPLAY.get(state, (state, "gray"))
+            self.status_lbl.configure(text=label, text_color=color)
 
         if perclos is None:
             self.perc_lbl.configure(text="Eye closed: --")
@@ -445,19 +573,51 @@ class Dashboard(ctk.CTk):
             except Exception:
                 pass
 
-        # --------------------------------------------------- frame drawing --
-        if lm is not None:
-            for i in config.LEFT_EYE + config.RIGHT_EYE:
-                cv2.circle(frame, (int(lm[i][0]), int(lm[i][1])), 2, (255, 0, 0), -1)
+        # ------------------------------------------------------- reason line --
+        calib_note = ""
+        if self.calibrator.done and self.calibrator.baseline is not None:
+            calib_note = " (calibrated)"
+        self.reason_lbl.configure(
+            text=(f"Reason: {decision.reason}"
+                  f"   |   eye gate: {self.eye_gate}"
+                  f"   |   EAR closed < {self.calibrator.threshold:.2f}{calib_note}"
+                  f"   |   zoom {self.zoom:.1f}x"
+                  f"   |   press C to recalibrate")
+        )
 
-        extra = ""
+        # --------------------------------------------------- frame drawing --
+        s = max(0.5, w / 640.0)          # every size below was tuned at 640 px
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        thin = max(1, int(round(1 * s)))
+        thick = max(1, int(round(2 * s)))
+
+        if lm is not None and face_present:
+            for i in config.LEFT_EYE + config.RIGHT_EYE:
+                cv2.circle(frame, (int(lm[i][0]), int(lm[i][1])),
+                           max(1, int(2 * s)), (255, 0, 0), -1)
+
+        extra = []
         if head_down and face_present:
-            extra += "HEAD DOWN "
+            extra.append("HEAD DOWN")
         if yawning_now:
-            extra += "YAWNING..."
+            extra.append("YAWNING...")
         if extra:
-            cv2.putText(frame, extra.strip(), (20, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, config.BGR_RED, 2)
+            cv2.putText(frame, " ".join(extra), (int(20 * s), int(36 * s)),
+                        font, 0.8 * s, config.BGR_RED, thick)
+
+        if self.calibrator.active:
+            hint = (f"CALIBRATING {self.calibrator.progress * 100:.0f}%"
+                    " - KEEP YOUR EYES OPEN")
+        elif not face_present:
+            hint = "NO FACE - LOOK AT THE CAMERA"
+        elif too_far or self.too_far_hint:
+            hint = "MOVE CLOSER TO THE CAMERA"
+        elif self.eye_gate.startswith("head turned"):
+            hint = "HEAD TURNED - FACE THE ROAD"
+        else:
+            hint = ""
+        if hint:
+            self._draw_banner(frame, hint, config.BGR_RED, s)
 
         if face_present:
             if perclos is None:
@@ -468,28 +628,39 @@ class Dashboard(ctk.CTk):
                 eyes_state = "Closing"
             else:
                 eyes_state = "Open"
+            if not eye_valid:
+                eyes_state = f"n/a ({self.eye_gate})"
             hp_state = "Down" if head_down else "Normal"
             for _j, (_txt, _c) in enumerate([
                 (f"Eyes: {eyes_state}", config.BGR_WHITE),
                 (f"Head Pose: {hp_state}", config.BGR_WHITE),
                 (f"Attention: {att_text}", config.ATT_COLORS.get(att_color, config.BGR_WHITE)),
             ]):
-                cv2.putText(frame, _txt, (max(10, w - 230), 24 + _j * 24),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, _c, 1)
+                cv2.putText(frame, _txt,
+                            (max(int(10 * s), w - int(290 * s)), int(26 * s + _j * 26 * s)),
+                            font, 0.55 * s, _c, thin)
+
+        reason_txt = f"Reason: {decision.reason}"
+        if len(reason_txt) > 78:
+            reason_txt = reason_txt[:75] + "..."
+        cv2.putText(frame, reason_txt, (int(20 * s), h - int(18 * s)),
+                    font, 0.5 * s, config.BGR_WHITE, thin)
 
         if self.recording:
-            cv2.circle(frame, (w - 40, 35), 12, config.BGR_RED, -1)
-            cv2.putText(frame, "REC", (w - 110, 45),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, config.BGR_RED, 2)
+            cv2.circle(frame, (w - int(40 * s), int(35 * s)), int(12 * s),
+                       config.BGR_RED, -1)
+            cv2.putText(frame, "REC", (w - int(115 * s), int(45 * s)),
+                        font, 0.8 * s, config.BGR_RED, thick)
             try:
                 self.writer.write(cv2.resize(frame, (config.FRAME_WIDTH, config.FRAME_HEIGHT)))
             except Exception:
                 pass
 
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).resize(
-            (config.FRAME_WIDTH, config.FRAME_HEIGHT))
+            (config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT), Image.LANCZOS)
         self.video_lbl.configure(image=ctk.CTkImage(light_image=img,
-                                                    size=(config.FRAME_WIDTH, config.FRAME_HEIGHT)),
+                                                    size=(config.DISPLAY_WIDTH,
+                                                          config.DISPLAY_HEIGHT)),
                                  text="")
 
         self.graph_hist.append(float("nan") if perclos is None else perclos)
@@ -501,9 +672,11 @@ class Dashboard(ctk.CTk):
         try:
             self.meas_log.log(
                 timestamp=now, state=state, level=stable_level,
+                reason=decision.reason,
                 perclos=perclos, ear=avg_ear, mar=mar, attention=attention,
                 head_down=head_down, distracted=distracted, yawning=yawning_now,
-                face_present=face_present, coverage=self.perclos_meter.coverage,
+                face_present=face_present, eye_valid=eye_valid,
+                coverage=self.perclos_meter.coverage,
             )
         except Exception:
             pass

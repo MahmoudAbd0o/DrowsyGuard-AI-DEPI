@@ -11,12 +11,37 @@ SERIAL_PORT = "COM5"          # Arduino port (Device Manager -> COMx)
 SERIAL_BAUD = 9600
 
 # ------------------------------------------------------------- eye / EAR --
-EAR_CLOSED_THRESH = 0.21      # EAR below this => eye considered closed
+EAR_CLOSED_THRESH = 0.21      # fallback threshold when calibration is skipped
 PERCLOS_WINDOW_SEC = 2.0      # observation window (was 60 frames @ ~30fps)
 PERCLOS_HIGH = 40.0           # % closed => drowsy
 PERCLOS_LOW = 15.0            # % closed => low risk
 PERCLOS_MIN_OBS = 15          # min valid samples before reporting
 PERCLOS_MIN_COVERAGE = 0.30   # min valid/total ratio for a trustworthy value
+
+# --------------------------------------------------------- eye calibration --
+# Every driver has a different eye shape, so one fixed threshold misfires on
+# some faces. The app measures the driver's own open-eye EAR at start-up and
+# derives a personal "closed" threshold from it.
+EAR_CALIBRATION_SEC = 3.0
+EAR_CALIBRATION_MIN_SAMPLES = 10
+EAR_CALIBRATION_MIN_BASELINE = 0.18   # lower samples are blinks, not "open"
+EAR_CLOSED_RATIO = 0.60               # personal threshold = baseline * ratio
+EAR_CLOSED_MIN = 0.13                 # clamp: never miss a real closure
+EAR_CLOSED_MAX = 0.26                 # clamp: never flag a normal stare
+EAR_SMOOTH_WINDOW = 5                 # rolling median over the last N samples
+
+# ------------------------------------------- when is an EAR trustworthy? --
+# A turned head or a tiny/far face deforms the eye corners and fakes closure.
+EAR_MAX_TURN_RATIO = 0.22     # yaw above this => measurement not usable
+FACE_TOO_FAR_WIDTH_PX = 110   # face narrower than this => "move closer"
+DETECTION_CONFIDENCE = 0.35   # MediaPipe: lower => finds smaller/farther faces
+TRACKING_CONFIDENCE = 0.40
+ZOOM_FACTOR = 2.0             # centre-crop retry when no face is found
+
+# -------------------------------------------------- decision stabilisation --
+DROWSY_CONFIRM_SEC = 1.2      # DROWSY must hold this long before the red alarm
+DROWSY_HOLD_SEC = 0.8         # keep the red state this long after it clears
+DROWSY_EXIT_PERCLOS = 25.0    # ...and only once PERCLOS drops below this
 
 # ----------------------------------------------------------- mouth / MAR --
 MAR_YAWN_THRESH = 0.60        # mouth open ratio => yawning
@@ -69,8 +94,10 @@ SIDE_BIAS = 0.5               # driver side vs face size trade-off
 PINCH_ANCHOR = 0.30           # non-mirrored anchor (phase1 behaviour)
 
 # ------------------------------------------------------------------ video --
-FRAME_WIDTH = 640
-FRAME_HEIGHT = 480
+FRAME_WIDTH = 1280            # capture/processing resolution (was 640x480)
+FRAME_HEIGHT = 720
+DISPLAY_WIDTH = 800           # on-screen size (keeps the window small)
+DISPLAY_HEIGHT = 450
 RECORD_FPS = 20.0
 AUTOSAVE_SEC = 60.0
 

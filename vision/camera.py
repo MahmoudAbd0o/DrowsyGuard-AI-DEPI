@@ -9,6 +9,8 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+import config
+
 
 class Camera:
     """Webcam wrapper with open-with-fallback, warm-up and reconnect."""
@@ -18,12 +20,16 @@ class Camera:
                  reconnect_after: int = 30,
                  retry_every: int = 90,
                  max_failures: int = 150,
-                 warmup_reads: int = 10):
+                 warmup_reads: int = 10,
+                 width: int | None = None,
+                 height: int | None = None):
         self.indices = tuple(indices)
         self.reconnect_after = int(reconnect_after)
         self.retry_every = int(retry_every)
         self.max_failures = int(max_failures)
         self.warmup_reads = int(warmup_reads)
+        self.width = int(config.FRAME_WIDTH if width is None else width)
+        self.height = int(config.FRAME_HEIGHT if height is None else height)
 
         self.cap = None
         self.index: int | None = None
@@ -31,6 +37,9 @@ class Camera:
         self.reconnects = 0
         self.dead = False
         self._warm = False
+        # Actual size reported by the driver (it may refuse the request).
+        self.actual_width = self.width
+        self.actual_height = self.height
 
     # ------------------------------------------------------------- lifecycle --
     def open(self) -> bool:
@@ -40,6 +49,7 @@ class Camera:
             if not cap.isOpened():
                 cap.release()
                 continue
+            self._configure(cap)
             self.cap = cap
             self.index = idx
             self._warm = self._warm_up()
@@ -51,6 +61,15 @@ class Camera:
             self.cap = None
         self.index = None
         return False
+
+    def _configure(self, cap) -> None:
+        """Ask for the high-resolution stream (needed for a distant face)."""
+        try:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        except Exception:
+            pass
 
     def _warm_up(self) -> bool:
         """Read a few frames so the sensor is ready (Zoom/Meet may hold it)."""
@@ -71,6 +90,8 @@ class Camera:
         ok, frame = self.cap.read()
         if ok and frame is not None:
             self.failures = 0
+            if frame.ndim >= 2:
+                self.actual_height, self.actual_width = frame.shape[:2]
             return frame
 
         self.failures += 1
@@ -95,6 +116,7 @@ class Camera:
             return
         cap = cv2.VideoCapture(self.index)
         if cap.isOpened():
+            self._configure(cap)
             self.cap = cap
         else:
             cap.release()
