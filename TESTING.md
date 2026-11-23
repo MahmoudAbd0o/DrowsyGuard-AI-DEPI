@@ -31,6 +31,8 @@ python dashboard.py          # Q to quit, expect: your face on screen
 | 11 | Unplug camera mid-run 30s | "Camera lost! Reconnecting..." in log, auto-recovers, no crash |
 | 12 | Unplug Arduino mid-run | Vision keeps running + warning in log, no crash |
 | 13 | Passenger next to driver | Driver = green box, passenger = gray "ignored", alarm only for driver |
+| 14 | Point at a speed bump picture | `BUMP AHEAD` + one beep (not mute-dependent) |
+| 15 | Point at a red traffic light | `RED LIGHT - STOP` after 2 s; clears when green |
 
 ## Bug report template
 - Name / laptop / camera:

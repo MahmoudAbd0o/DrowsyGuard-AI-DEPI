@@ -55,6 +55,8 @@ from hardware.protocol import LevelDebouncer, command_for_state
 from vision.camera import Camera
 from vision.face_detector import (FaceDetector, centre_crop, remap_landmarks,
                                   select_driver)
+from vision.road_monitor import RoadMonitor, RoadResult
+from vision.road_scene import light_colour
 
 try:
     import serial
@@ -115,6 +117,15 @@ class Dashboard(ctk.CTk):
         self.eye_valid = False
         self.too_far_hint = False
 
+        # --- road scene (bumps + traffic lights), loaded on the first frame ---
+        self.road_enabled = bool(config.ROAD_AI_ENABLED)
+        self.road = None
+        self.road_loaded = False
+        self.road_result = RoadResult()
+        self.last_bump_alert = 0.0
+        self._red_alert_prev = False
+        self.last_red_beep = 0.0
+
         # --- logging ---
         self.meas_log = MeasurementLogger()
         self.event_log = EventLog(config.SESSION_REPORT)
@@ -143,6 +154,8 @@ class Dashboard(ctk.CTk):
         self.bind("<KeyPress-R>", lambda e: self.toggle_rec())
         self.bind("<KeyPress-c>", lambda e: self.recalibrate())
         self.bind("<KeyPress-C>", lambda e: self.recalibrate())
+        self.bind("<KeyPress-y>", lambda e: self.toggle_road())
+        self.bind("<KeyPress-Y>", lambda e: self.toggle_road())
         self.last_dark_warn = 0.0
 
         # --- layout: video left, stats right ---
@@ -198,6 +211,13 @@ class Dashboard(ctk.CTk):
         self.reason_lbl.grid(row=9, column=0, columnspan=2,
                              padx=14, pady=(0, 8), sticky="ew")
 
+        self.road_lbl = ctk.CTkLabel(
+            self, text="Road: --", font=("Consolas", 13),
+            text_color="#9AA3AE", anchor="w", justify="left",
+        )
+        self.road_lbl.grid(row=10, column=0, columnspan=2,
+                           padx=14, pady=(0, 10), sticky="ew")
+
         self.grid_columnconfigure(0, weight=0, minsize=config.DISPLAY_WIDTH + 24)
         self.grid_columnconfigure(1, weight=1)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -208,6 +228,15 @@ class Dashboard(ctk.CTk):
     def toggle_mute(self):
         self.muted = not self.muted
         self.mute_btn.configure(text=f"Mute: {'ON' if self.muted else 'OFF'}")
+
+    def toggle_road(self):
+        """Turn the bump / traffic-light detector on or off (press Y)."""
+        self.road_enabled = not self.road_enabled
+        if self.road is not None:
+            self.road.reset()
+        self.road_result = RoadResult()
+        self._red_alert_prev = False
+        self.add_log(f"Road AI {'ON' if self.road_enabled else 'OFF'}.")
 
     def recalibrate(self):
         """Restart eye calibration (press C)."""
@@ -509,6 +538,47 @@ class Dashboard(ctk.CTk):
                 self.ser = None
         self.last_level = stable_level
 
+        # -------------------------------------------------------- road scene --
+        if self.road_enabled and not self.road_loaded:
+            self.road_loaded = True
+            self.add_log("Loading road AI (bumps + traffic lights)...")
+            try:
+                self.road = RoadMonitor.load()
+            except Exception as e:
+                self.road = None
+                self.add_log(f"Road AI failed to load ({e})")
+            if self.road is not None and self.road.ready:
+                self.add_log("Road AI ready - bumps + traffic lights.")
+            else:
+                self.add_log("Road AI off (pip install -r requirements-yolo.txt).")
+
+        road = self.road_result
+        if self.road_enabled and self.road is not None:
+            road = self.road.update(frame, now)
+            self.road_result = road
+
+            if road.red_alert != self._red_alert_prev:
+                self._red_alert_prev = road.red_alert
+                self.add_log("RED LIGHT - STOP" if road.red_alert
+                             else "Red light cleared.")
+            if road.red_alert and not self.muted and now - self.last_red_beep > 1.0:
+                self.last_red_beep = now
+                try:
+                    import winsound
+                    winsound.Beep(1200, 250)
+                except Exception:
+                    print("\a", flush=True)
+
+            if road.bumps and now - self.last_bump_alert > config.BUMP_ALERT_SEC:
+                self.last_bump_alert = now
+                self.add_log(f"Speed bump ahead ({len(road.bumps)})")
+                if not self.muted:
+                    try:
+                        import winsound
+                        winsound.Beep(900, 120)
+                    except Exception:
+                        print("\a", flush=True)
+
         # ----------------------------------------------------------- beep --
         if not self.muted and stable_level in ("1", "2", "3"):
             gap = {"1": 2.0, "3": 1.2, "2": 0.8}[stable_level]
@@ -590,6 +660,17 @@ class Dashboard(ctk.CTk):
                   f"   |   press C to recalibrate")
         )
 
+        if not self.road_enabled:
+            road_text = "Road AI: OFF - press Y to enable"
+        elif self.road is None:
+            road_text = ("Road AI: loading..." if not self.road_loaded
+                         else "Road AI: not loaded")
+        elif not self.road.ready:
+            road_text = "Road AI: no models (pip install -r requirements-yolo.txt)"
+        else:
+            road_text = f"Road: {road.summary}   |   press Y to toggle"
+        self.road_lbl.configure(text=road_text)
+
         # --------------------------------------------------- frame drawing --
         s = max(0.5, w / 640.0)          # every size below was tuned at 640 px
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -609,6 +690,27 @@ class Dashboard(ctk.CTk):
         if extra:
             cv2.putText(frame, " ".join(extra), (int(20 * s), int(36 * s)),
                         font, 0.8 * s, config.BGR_RED, thick)
+
+        # ------------------------------------------------ road overlays --
+        if road.light is not None:
+            x1, y1, x2, y2 = road.light.box
+            light_bgr = light_colour(road.light_state)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), light_bgr, thick)
+            cv2.putText(frame, f"{road.light_state} {road.light.confidence:.2f}",
+                        (x1, max(int(14 * s), y1 - int(8 * s))),
+                        font, 0.6 * s, light_bgr, thin)
+        for bump in road.bumps:
+            x1, y1, x2, y2 = bump.box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), config.BGR_ORANGE, thick)
+            cv2.putText(frame, "SPEED BUMP",
+                        (x1, max(int(14 * s), y1 - int(8 * s))),
+                        font, 0.6 * s, config.BGR_ORANGE, thin)
+        if road.red_alert:
+            cv2.putText(frame, "RED LIGHT - STOP", (int(20 * s), int(104 * s)),
+                        font, 0.8 * s, config.BGR_RED, thick)
+        elif road.bumps:
+            cv2.putText(frame, "BUMP AHEAD", (int(20 * s), int(104 * s)),
+                        font, 0.8 * s, config.BGR_ORANGE, thick)
 
         if self.calibrator.active:
             hint = (f"CALIBRATING {self.calibrator.progress * 100:.0f}%"
@@ -681,6 +783,7 @@ class Dashboard(ctk.CTk):
                 perclos=perclos, ear=avg_ear, mar=mar, attention=attention,
                 head_down=head_down, distracted=distracted, yawning=yawning_now,
                 face_present=face_present, eye_valid=eye_valid,
+                bumps=len(road.bumps), light=road.light_state,
                 coverage=self.perclos_meter.coverage,
             )
         except Exception:

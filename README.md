@@ -7,6 +7,8 @@ Smart driver monitoring + ADAS prototype by ENG. Mahmoud Abdo (CS Year 3, AI —
 - Driver states: `ALERT` / `LOW RISK` / `DISTRACTED` / `DROWSY` / `UNKNOWN`
 - Yawning detection (MAR) + distraction alert (`Look Ahead!`)
 - Attention score (0–100) with a live meter
+- Road scene in the same app: speed bumps (`bump_model.pt`) + traffic lights
+  (YOLOv8n) with `BUMP AHEAD` / `RED LIGHT - STOP` alerts
 - Arduino bridge: buzzer + LEDs + motor brake + HC-SR04 auto-brake
 - Timestamp-based PERCLOS + missing-data handling + session logging
 
@@ -19,7 +21,7 @@ pip install -r requirements.txt
 python dashboard.py          # full dashboard (or: python main.py)
 ```
 Keys: `Q` quit, `M` mute beep, `R` start/stop recording,
-`C` re-run eye calibration.
+`C` re-run eye calibration, `Y` toggle road AI.
 
 ## Project structure
 ```text
@@ -30,7 +32,8 @@ DrowsyGuard-AI-DEPI-main/
 ├── vision/
 │   ├── camera.py            # capture, warm-up, auto-reconnect
 │   ├── face_detector.py     # MediaPipe Face Mesh + driver selection
-│   └── road_scene.py        # traffic light + speed-bump detection (YOLO)
+│   ├── road_scene.py        # traffic light + speed-bump detection (YOLO)
+│   └── road_monitor.py      # YOLO schedule + red-light timer for the dashboard
 ├── ai/
 │   ├── features.py          # EAR / MAR / head pose (pure functions)
 │   ├── calibration.py       # personal eye calibration + EAR median filter
@@ -48,7 +51,7 @@ DrowsyGuard-AI-DEPI-main/
 │   ├── make_report.py           # charts + report/report.md
 │   └── test_arduino.py          # sends 0/1/2/3/N to the car, no camera
 ├── report/                  # generated figures + Evaluation Report
-├── tests/                   # 121 unit tests (unittest)
+├── tests/                   # 129 unit tests (unittest)
 ├── outputs/                 # generated logs & reports (gitignored)
 ├── arduino_bridge/arduino_bridge.ino
 ├── yolo_phase2.py
@@ -67,6 +70,17 @@ DrowsyGuard-AI-DEPI-main/
 
 `UNKNOWN` is deliberately **not** reported as `ALERT`: a missing face never
 means the driver is safe.
+
+## One app: driver + road
+`dashboard.py` runs both halves in one window:
+- driver: MediaPipe face mesh -> EAR / PERCLOS / yawns / head pose
+- road: YOLO every `ROAD_YOLO_EVERY` frames on a half-size copy ->
+  speed bumps (`bump_model.pt`) and traffic lights (`yolov8n.pt`)
+
+The road pass is skipped while the model is busy, so the driver loop keeps its
+frame rate. `RED LIGHT - STOP` fires after `RED_LIGHT_ALERT_SEC` on red, and a
+bump triggers `BUMP AHEAD` + one beep every `BUMP_ALERT_SEC`. Both are written
+to the session CSV (`bumps`, `light` columns) and can be switched off with `Y`.
 
 ## Arduino / car firmware
 `arduino_bridge/arduino_bridge.ino` is a drop-in for the team's Bluetooth car:
@@ -178,9 +192,10 @@ See `TESTING.md`: 13 cases (eyes, yawn x2, look-away, no-face, 2 people, glasses
 - [x] Phase 0: face + eye % + risk + alert
 - [x] Phase 1: yawning + distraction
 - [x] Dashboard (live % + graph + status + graduated alarm)
-- [x] Modular architecture + 121 automated tests
+- [x] Modular architecture + 129 automated tests
 - [ ] Arduino hardware test (buzzer/LED/brake)
 - [x] YOLO: traffic light + speed bump (`bump_model.pt`, mAP@50 99.4%)
+- [x] Road AI merged into the dashboard (bumps + traffic lights, one app)
 - [x] Evaluation report (`report/report.md`)
 - [ ] Telegram alert + demo video
 

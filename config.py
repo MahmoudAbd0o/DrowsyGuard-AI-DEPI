@@ -102,6 +102,18 @@ DISPLAY_HEIGHT = 450
 RECORD_FPS = 20.0
 AUTOSAVE_SEC = 60.0
 
+# ----------------------------------------------------------- road AI (YOLO) --
+# Bumps + traffic lights run inside the dashboard on a schedule so the driver
+# loop stays fast on a CPU. Press Y in the app to toggle them off/on.
+ROAD_AI_ENABLED = True
+YOLO_LIGHT_WEIGHTS = "yolov8n.pt"      # COCO model (traffic light = class 9)
+YOLO_BUMP_WEIGHTS = "bump_model.pt"    # custom speed-bump model
+YOLO_CONF = 0.45
+ROAD_YOLO_EVERY = 5           # detect on every 5th frame (~4 passes per second)
+ROAD_YOLO_SCALE = 2           # run on frame / 2 (640x360) then scale boxes back
+RED_LIGHT_ALERT_SEC = 2.0     # red held this long -> "STOP" alert
+BUMP_ALERT_SEC = 3.0          # min gap between two bump beeps
+
 # ----------------------------------------------------------------- colours --
 BGR_GREEN = (0, 200, 0)
 BGR_ORANGE = (0, 165, 255)

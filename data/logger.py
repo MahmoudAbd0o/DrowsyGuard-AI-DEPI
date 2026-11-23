@@ -16,7 +16,7 @@ import config
 MEASUREMENT_FIELDS = [
     "timestamp", "state", "level", "reason", "perclos", "ear", "mar",
     "attention", "head_down", "distracted", "yawning",
-    "face_present", "eye_valid", "coverage",
+    "face_present", "eye_valid", "bumps", "light", "coverage",
 ]
 
 
@@ -46,6 +46,8 @@ class MeasurementLogger:
             head_down: bool = False, distracted: bool = False,
             yawning: bool = False, face_present: bool = True,
             eye_valid: bool = False,
+            bumps: int | None = None,
+            light: str = "",
             coverage: float | None = None) -> None:
         self._buffer.append({
             "timestamp": f"{timestamp:.3f}",
@@ -61,6 +63,8 @@ class MeasurementLogger:
             "yawning": int(bool(yawning)),
             "face_present": int(bool(face_present)),
             "eye_valid": int(bool(eye_valid)),
+            "bumps": "" if bumps is None else int(bumps),
+            "light": light,
             "coverage": "" if coverage is None else f"{coverage:.3f}",
         })
         if len(self._buffer) >= self.buffer_size:
