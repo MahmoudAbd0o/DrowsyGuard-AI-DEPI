@@ -91,7 +91,7 @@ MIN_LANDMARKS = 468
 MIRROR = True                 # selfie view: screen acts like a mirror
 DRIVER_ANCHOR = 0.70          # mirrored view: driver on the right (Egypt)
 SIDE_BIAS = 0.5               # driver side vs face size trade-off
-PINCH_ANCHOR = 0.30           # non-mirrored anchor (phase1 behaviour)
+PINCH_ANCHOR = 0.30           # non-mirrored anchor (legacy behaviour)
 
 # ------------------------------------------------------------------ video --
 FRAME_WIDTH = 1280            # capture/processing resolution (was 640x480)

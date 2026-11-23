@@ -16,13 +16,10 @@ Easiest (Windows, no terminal): install Python 3.10, double-click `setup.bat`, t
 conda create -n drowsiness python=3.10 -y
 conda activate drowsiness
 pip install -r requirements.txt
-python test_camera.py        # camera check, Q to quit
-python main.py               # full dashboard (or: python dashboard.py)
-python drowsiness_phase0.py  # minimal: face + eye % + risk
-python drowsiness_phase1.py  # + yawning + distraction
+python dashboard.py          # full dashboard (or: python main.py)
 ```
-Keys: `Q` quit (phase scripts), `M` mute beep, `R` start/stop recording,
-`C` re-run eye calibration (dashboard).
+Keys: `Q` quit, `M` mute beep, `R` start/stop recording,
+`C` re-run eye calibration.
 
 ## Project structure
 ```text
@@ -53,8 +50,6 @@ DrowsyGuard-AI-DEPI-main/
 ├── tests/                   # 121 unit tests (unittest)
 ├── outputs/                 # generated logs & reports (gitignored)
 ├── arduino_bridge/arduino_bridge.ino
-├── drowsiness_phase0.py
-├── drowsiness_phase1.py
 ├── yolo_phase2.py
 ├── TESTING.md
 └── PROJECT_PLAN.md
@@ -157,10 +152,7 @@ python tools/make_report.py --images data/bump_test/images --labels data/bump_te
 | File | Purpose |
 |------|---------|
 | `dashboard.py` | Live app: video, states, EAR/MAR/PERCLOS, attention, graph, log |
-| `drowsiness_phase0.py` | Face box, EAR/PERCLOS %, head-down, HIGH/LOW, Stay Alert |
-| `drowsiness_phase1.py` | + yawning (MAR) + distraction (head-turn) |
 | `yolo_phase2.py` | YOLO traffic light + speed-bump model (logic in `vision/road_scene.py`) |
-| `test_camera.py` | Camera sanity check |
 | `tools/make_report.py` | Evaluation charts + `report/report.md` |
 | `arduino_bridge/arduino_bridge.ino` | Buzzer/LED/motor + ultrasonic auto-brake |
 | `TESTING.md` | 13 team test cases + bug template |

@@ -1,4 +1,4 @@
-# DrowsyGuard AI — Team Testing Guide (Phase 0+1)
+# DrowsyGuard AI — Team Testing Guide
 
 ## Setup (5 min)
 ```bash
@@ -12,9 +12,7 @@ pip install -r requirements.txt
 
 ## Run
 ```bash
-python test_camera.py        # Q to quit, expect: your face on screen
-python drowsiness_phase0.py  # face box + eye % + HIGH/LOW + Stay Alert
-python drowsiness_phase1.py  # + yawning + distraction
+python dashboard.py          # Q to quit, expect: your face on screen
 ```
 
 ## Test cases (report Pass/Fail + notes)

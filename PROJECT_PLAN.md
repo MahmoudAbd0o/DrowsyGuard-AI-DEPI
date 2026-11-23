@@ -1,16 +1,18 @@
 # Driver Drowsiness + ADAS — Professional Plan (Mahmoud)
 
-## Status (tonight)
+## Status
 - [x] Env `drowsiness` (Python 3.10) created
 - [x] Installed: opencv, mediapipe, numpy, pyserial, customtkinter
-- [ ] Tomorrow AM: `pip install ultralytics` (torch ~800MB, needs good net/DNS 8.8.8.8)
+- [x] YOLO (ultralytics) + bump model trained and committed
+- [x] Dashboard + decision engine + 121 tests
+- [ ] Arduino hardware test (buzzer / LED / brake)
 
-## Run tomorrow
-1. Camera test:
-   `C:\Users\EL-Mostwred\anaconda3\envs\drowsiness\python.exe test_camera.py`
-2. Phase 0 AI (face box + eye % + HEAD DOWN + HIGH/LOW + alert):
-   `C:\Users\EL-Mostwred\anaconda3\envs\drowsiness\python.exe drowsiness_phase0.py`
-   - Q quit, M mute. Tune in file: EAR_CLOSED_THRESH, PERCLOS_HIGH, HEAD_DOWN_THRESH, SERIAL_PORT.
+## Run
+1. `conda activate drowsiness`
+2. `cd DrowsyGuard-AI-DEPI-main`
+3. `python dashboard.py`
+   - Q quit, M mute, R record, C recalibrate.
+   - Tune in `config.py`: eye thresholds, PERCLOS, head pose, SERIAL_PORT.
 
 ## Architecture
 Camera -> Laptop Python (MediaPipe + EAR/PERCLOS + YOLO later)
