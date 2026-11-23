@@ -16,7 +16,7 @@
 //   '2' DROWSY      -> red LED + loud buzzer + HARD BRAKE
 //   'N' no face     -> white LED, silent (never reported as "safe")
 //
-// The grace period lives on the laptop (`DROWSY_CONFIRM_SEC`, 30 s): eyes
+// The grace period lives on the laptop (`DROWSY_CONFIRM_SEC`, 10 s): eyes
 // closed ramp '1' -> '2' only when the closure is sustained, so a blink never
 // stops the car.
 //

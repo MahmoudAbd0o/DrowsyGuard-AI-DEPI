@@ -205,7 +205,7 @@ class TestFalseAlarmRegression(unittest.TestCase):
     def test_real_closure_still_alarms(self):
         fps = 30.0
         # Eyes open for 7 s, then closed long enough to beat the configured
-        # confirmation time (30 s in this build) plus a little margin.
+        # confirmation time (10 s in this build) plus a little margin.
         total = 7.0 + config.DROWSY_CONFIRM_SEC + 3.0
         rows = []
         for i in range(int(total * fps)):

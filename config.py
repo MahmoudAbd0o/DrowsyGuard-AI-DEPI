@@ -40,7 +40,7 @@ TRACKING_CONFIDENCE = 0.40
 ZOOM_FACTOR = 2.0             # centre-crop retry when no face is found
 
 # -------------------------------------------------- decision stabilisation --
-DROWSY_CONFIRM_SEC = 30.0     # DROWSY must hold this long before the red alarm
+DROWSY_CONFIRM_SEC = 10.0     # DROWSY must hold this long before the red alarm
 DROWSY_HOLD_SEC = 0.8         # keep the red state this long after it clears
 DROWSY_EXIT_PERCLOS = 25.0    # ...and only once PERCLOS drops below this
 
