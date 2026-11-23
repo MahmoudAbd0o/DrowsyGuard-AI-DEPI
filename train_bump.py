@@ -6,7 +6,7 @@ still works, but on CPU it is slow.
 
     python train_bump.py --data datasets/bump/data.yaml --epochs 50 --batch 8
 
-The produced ``bump_model.pt`` is picked up automatically by ``yolo_phase2.py``.
+The produced ``bump_model.pt`` is picked up automatically by ``dashboard.py``.
 """
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ def main(argv=None):
 
     shutil.copy2(best, args.out)
     print(f"\nOK: {args.out}  (from {best})")
-    print(f"Next: keep {Path(args.out).name} next to yolo_phase2.py and run it.")
+    print(f"Next: keep {Path(args.out).name} next to dashboard.py and run it.")
     return 0
 
 

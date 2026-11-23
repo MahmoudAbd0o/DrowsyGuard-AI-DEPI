@@ -54,9 +54,7 @@ DrowsyGuard-AI-DEPI-main/
 ├── tests/                   # 129 unit tests (unittest)
 ├── outputs/                 # generated logs & reports (gitignored)
 ├── arduino_bridge/arduino_bridge.ino
-├── yolo_phase2.py
-├── TESTING.md
-└── PROJECT_PLAN.md
+└── TESTING.md
 ```
 
 ## Driver states → Arduino commands
@@ -142,8 +140,8 @@ each event onset and its first correct detection.
 
 ## Speed-bump model (`bump_model.pt`)
 `bump_model.pt` (6.35 MB, YOLOv8n) is committed to the repo and loaded by
-`vision/road_scene.py`; `yolo_phase2.py` runs it live next to the traffic-light
-model. Validation on 277 images / 305 instances: **P 98.7%, R 97.4%,
+`vision/road_scene.py`; the dashboard runs it live next to the driver monitor.
+Validation on 277 images / 305 instances: **P 98.7%, R 97.4%,
 mAP@50 99.4%, mAP@50-95 71.6%**.
 
 To retrain it:
@@ -179,11 +177,9 @@ python tools/make_report.py --images data/bump_test/images --labels data/bump_te
 | File | Purpose |
 |------|---------|
 | `dashboard.py` | Live app: video, states, EAR/MAR/PERCLOS, attention, graph, log |
-| `yolo_phase2.py` | YOLO traffic light + speed-bump model (logic in `vision/road_scene.py`) |
 | `tools/make_report.py` | Evaluation charts + `report/report.md` |
 | `arduino_bridge/arduino_bridge.ino` | Car firmware: buzzer/LED/motor/servo + ultrasonic auto-brake + camera alerts |
-| `TESTING.md` | 13 team test cases + bug template |
-| `PROJECT_PLAN.md` | Roadmap + pro shopping list (~1300 EGP) |
+| `TESTING.md` | 15 team test cases + bug template |
 
 ## Team testing
 See `TESTING.md`: 13 cases (eyes, yawn x2, look-away, no-face, 2 people, glasses, low light, unplug camera/Arduino, passenger). Report Pass/Fail + EAR/MAR values.

@@ -5,7 +5,7 @@ the frame; the boxes are scaled back to full-frame pixels and kept until the
 next pass. The scheduling and the red-light rule are pure logic, so this module
 can be tested without torch or a camera (fake detectors are injected).
 
-``yolo_phase2.py`` stays as a standalone demo of the same detectors.
+A standalone camera loop is no longer needed: the dashboard calls this module.
 """
 from __future__ import annotations
 
