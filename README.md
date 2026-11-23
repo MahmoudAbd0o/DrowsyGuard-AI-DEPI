@@ -111,8 +111,9 @@ Two field problems were fixed without adding hardware:
    Looking at the screen can no longer fake a closure.
 3. **Median filter** over the last 5 EAR samples - one bad frame is ignored.
 4. **Time-based confirmation** (`ai.drowsiness.DecisionStabilizer`) - DROWSY
-   must hold 1.2 s before the red alarm (the driver sees a yellow warning
-   first) and is only released below 25% PERCLOS + 0.8 s hold.
+   must hold `DROWSY_CONFIRM_SEC` (30 s in this build; the driver sees the red
+   warning + soft beep from the first second) and is only released below 25%
+   PERCLOS + 0.8 s hold.
 5. **1280x720 capture + centre-zoom retry** - when no face is found, the middle
    of the frame is cropped and re-detected once (`ZOOM_FACTOR = 2`), and the
    screen shows `MOVE CLOSER TO THE CAMERA` instead of failing silently.
