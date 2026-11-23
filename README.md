@@ -63,8 +63,7 @@ DrowsyGuard-AI-DEPI-main/
 | State | Meaning | Serial |
 |---|---|---|
 | `ALERT` | eyes open, head forward | `0` |
-| `LOW RISK` | blinking / yawning | `1` |
-| `DROWSY` | PERCLOS high, head down, or repeated yawns | `2` |
+| `LOW RISK` | blinking / yawning | `1` || `DROWSY` | PERCLOS high, head down, or repeated yawns | `2` |
 | `DISTRACTED` | head turned away from the road | `3` |
 | `UNKNOWN` | no face / face too small / not enough data | `N` |
 

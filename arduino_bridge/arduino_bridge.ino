@@ -11,10 +11,14 @@
 //
 // CAMERA / AI  (sent by dashboard.py, heartbeat every ~1 s)
 //   '0' safe        -> green LED
-//   '1' low risk    -> white LED + soft beep
+//   '1' low risk    -> RED led + soft beep (eyes closing, car still drives)
 //   '3' distracted  -> white LED + faster beep
 //   '2' DROWSY      -> red LED + loud buzzer + HARD BRAKE
 //   'N' no face     -> white LED, silent (never reported as "safe")
+//
+// The grace period lives on the laptop (`DROWSY_CONFIRM_SEC`, 1.2 s): eyes
+// closed ramp '1' -> '2' only when the closure is sustained, so a blink never
+// stops the car.
 //
 // MANUAL DRIVING (phone app / keyboard)
 //   'S' stop + ARM the motors   'F' forward   'B' back
@@ -405,8 +409,27 @@ void updateAlert(bool obstacleAlarm) {
     tone(BUZZER, 2000);
   }
 
-  else if (alertState == '1' ||
-           alertState == '3') {
+  else if (alertState == '1') {
+
+    // Eyes closing / low risk: red warning LED, soft beep, NO brake yet.
+    // The laptop turns this into '2' after DROWSY_CONFIRM_SEC (1.2 s).
+
+    digitalWrite(RED_LED, HIGH);
+
+    if (millis() - lastBeep >= 900) {
+
+      lastBeep = millis();
+
+      beepState = !beepState;
+
+      if (beepState)
+        tone(BUZZER, 1200);
+      else
+        noTone(BUZZER);
+    }
+  }
+
+  else if (alertState == '3') {
 
     digitalWrite(WHITE_LED, HIGH);
 
