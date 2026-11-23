@@ -203,8 +203,12 @@ class TestFalseAlarmRegression(unittest.TestCase):
         self.assertNotIn(ds.LOW_RISK, during)
 
     def test_real_closure_still_alarms(self):
-        fps, rows = 30.0, []
-        for i in range(int(11 * fps)):
+        fps = 30.0
+        # Eyes open for 7 s, then closed long enough to beat the configured
+        # confirmation time (30 s in this build) plus a little margin.
+        total = 7.0 + config.DROWSY_CONFIRM_SEC + 3.0
+        rows = []
+        for i in range(int(total * fps)):
             t = i / fps
             rows.append((t, 0.55 if t < 7.0 else 0.08, 0.05, 300))
         states, _ = self._run(rows, gate=True)
