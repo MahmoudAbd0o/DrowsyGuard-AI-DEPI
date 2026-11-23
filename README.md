@@ -45,7 +45,8 @@ DrowsyGuard-AI-DEPI-main/
 ├── tools/
 │   ├── prepare_bump_dataset.py  # filter bump class + split + data.yaml
 │   ├── simulate_session.py      # scripted session log for the report
-│   └── make_report.py           # charts + report/report.md
+│   ├── make_report.py           # charts + report/report.md
+│   └── test_arduino.py          # sends 0/1/2/3/N to the car, no camera
 ├── report/                  # generated figures + Evaluation Report
 ├── tests/                   # 121 unit tests (unittest)
 ├── outputs/                 # generated logs & reports (gitignored)
@@ -66,6 +67,18 @@ DrowsyGuard-AI-DEPI-main/
 
 `UNKNOWN` is deliberately **not** reported as `ALERT`: a missing face never
 means the driver is safe.
+
+## Arduino / car firmware
+`arduino_bridge/arduino_bridge.ino` is a drop-in for the team's Bluetooth car:
+L298N motors (D2-D5), steering servo (D9), HC-SR04 (D6/D7), MPU6050 (I2C),
+green/white/red LEDs (A0-A2), buzzer (A3), HC-06 on D10/D11.
+
+- Camera commands (`0/1/2/3/N`) are read from **Bluetooth and USB** at the same time.
+- Driving commands `S` (arm/stop) and `F/B/L/R` still work from the phone app.
+- `2` brakes immediately and cancels an automatic turn; no camera byte for
+  3 s falls back to `N` (the dashboard sends a heartbeat every second).
+- Bench test without the camera: `python tools/test_arduino.py COM7`
+  (the car brakes during the `2` step, so lift the wheels).
 
 ## Missing-data policy
 - Invalid measurements are `None`, never `0`.
@@ -154,7 +167,7 @@ python tools/make_report.py --images data/bump_test/images --labels data/bump_te
 | `dashboard.py` | Live app: video, states, EAR/MAR/PERCLOS, attention, graph, log |
 | `yolo_phase2.py` | YOLO traffic light + speed-bump model (logic in `vision/road_scene.py`) |
 | `tools/make_report.py` | Evaluation charts + `report/report.md` |
-| `arduino_bridge/arduino_bridge.ino` | Buzzer/LED/motor + ultrasonic auto-brake |
+| `arduino_bridge/arduino_bridge.ino` | Car firmware: buzzer/LED/motor/servo + ultrasonic auto-brake + camera alerts |
 | `TESTING.md` | 13 team test cases + bug template |
 | `PROJECT_PLAN.md` | Roadmap + pro shopping list (~1300 EGP) |
 

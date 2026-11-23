@@ -9,6 +9,7 @@ Verified environment: Python 3.10, mediapipe==0.10.9.
 # ---------------------------------------------------------------- serial --
 SERIAL_PORT = "COM5"          # Arduino port (Device Manager -> COMx)
 SERIAL_BAUD = 9600
+SERIAL_HEARTBEAT_SEC = 1.0    # re-send the current level so the car never times out
 
 # ------------------------------------------------------------- eye / EAR --
 EAR_CLOSED_THRESH = 0.21      # fallback threshold when calibration is skipped

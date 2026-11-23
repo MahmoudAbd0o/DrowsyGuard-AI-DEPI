@@ -106,6 +106,7 @@ class Dashboard(ctk.CTk):
         self.running = True
         self.last_level = ""
         self.last_beep = 0.0
+        self._last_send = -999.0
         self.ser = None
         self.vision_errors = 0
         self._last_reconnects = 0
@@ -318,7 +319,7 @@ class Dashboard(ctk.CTk):
                 pass
         if self.ser is not None:
             try:
-                self.ser.write(b"0")
+                self.ser.write(b"N")     # unknown, never "safe" after we leave
                 self.ser.close()
             except Exception:
                 pass
@@ -493,9 +494,13 @@ class Dashboard(ctk.CTk):
         att_text, att_color = attention_level(attention)
 
         # --------------------------------------------------------- serial --
-        if self.ser is not None and stable_level != self.last_level:
+        # The car firmware drops back to 'N' when no camera byte arrives for a
+        # few seconds, so a stable state still needs a heartbeat.
+        heartbeat_due = now - self._last_send >= config.SERIAL_HEARTBEAT_SEC
+        if self.ser is not None and (stable_level != self.last_level or heartbeat_due):
             try:
                 self.ser.write(stable_level.encode())
+                self._last_send = now
             except Exception:
                 try:
                     self.ser.close()
